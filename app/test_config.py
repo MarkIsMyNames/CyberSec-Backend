@@ -7,6 +7,7 @@ POSITIVE_INT_KEYS = [
     ("auth", "access_token_ttl_minutes"),
     ("auth", "refresh_token_ttl_days"),
     ("auth", "preauth_token_ttl_seconds"),
+    ("auth", "srp_session_ttl_seconds"),
     ("auth", "totp_window"),
     ("server", "max_upload_bytes"),
     ("logging", "log_max_bytes"),

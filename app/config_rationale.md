@@ -84,6 +84,12 @@ tokens to hardware keys makes theft useless — but DBSC requires browser or TPM
 support unavailable in the C++ desktop client.
 OWASP recommends a maximum of 15 minutes for unbound bearer tokens.
 
+**srp_session_ttl_seconds: 120**
+The server holds ephemeral SRP state between /srp-init and /srp-verify.
+If the client abandons the handshake, this state must expire to prevent
+unbounded memory growth. 120 seconds is generous for any legitimate client
+latency while keeping the attack surface for session fixation narrow.
+
 **preauth_token_ttl_seconds: 60**
 Without a short TTL, an attacker who steals a password has unlimited time to
 brute-force the 6-digit TOTP code (only 10^6 possibilities).

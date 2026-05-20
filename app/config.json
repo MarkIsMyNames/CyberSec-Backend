@@ -24,6 +24,7 @@
     "access_token_ttl_minutes": 15,
     "refresh_token_ttl_days": 7,
     "preauth_token_ttl_seconds": 60,
+    "srp_session_ttl_seconds": 120,
     "totp_window": 1,
     "jwt_algorithm": "HS256"
   },

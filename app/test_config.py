@@ -5,6 +5,7 @@ POSITIVE_INT_KEYS = [
     ("crypto", "argon2_memory_cost_kb"),
     ("crypto", "argon2_parallelism"),
     ("crypto", "argon2_hash_len"),
+    ("crypto", "database_key_length_bytes"),
     ("auth", "access_token_ttl_minutes"),
     ("auth", "refresh_token_ttl_days"),
     ("auth", "preauth_token_ttl_seconds"),

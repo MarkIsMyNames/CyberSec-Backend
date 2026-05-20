@@ -22,7 +22,8 @@
       "auth_key": "SecureMsg-v1-auth",
       "totp_encryption": "SecureMsg-v1-totp-encryption",
       "database_key": "SecureMsg-v1-database-key"
-    }
+    },
+    "database_key_length_bytes": 32
   },
   "auth": {
     "access_token_ttl_minutes": 15,
@@ -39,7 +40,9 @@
   "server": {
     "max_upload_bytes": 10485760,
     "tls_min_version": "TLSv1.3",
-    "cors_origins": []
+    "cors_origins": [],
+    "db_path": "securemsg.db",
+    "db_foreign_keys": true
   },
   "logging": {
     "log_file": "securemsg.log",

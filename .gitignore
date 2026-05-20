@@ -64,6 +64,8 @@ Thumbs.db
 *.crt
 *.p12
 
+securemsg.db
+securemsg.log
 
 
 

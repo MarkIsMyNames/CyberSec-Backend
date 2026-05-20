@@ -33,9 +33,8 @@
     "jwt_algorithm": "HS256"
   },
   "rate_limits": {
-    "auth_per_minute": 10,
-    "messages_per_minute": 60,
-    "default_per_minute": 120
+    "auth": "10/minute",
+    "messages": "60/minute"
   },
   "server": {
     "max_upload_bytes": 10485760,

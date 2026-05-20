@@ -103,17 +103,15 @@ issues and verifies. The signing secret is generated fresh per deployment from a
 
 ## rate_limits
 
-**auth_per_minute: 10**
+**auth: "10/minute"**
 Limits credential stuffing and TOTP brute-force. 10/min allows legitimate users
 while making automated attacks impractical.
 OWASP Authentication Cheat Sheet recommends strict rate limiting on all auth endpoints.
 
-**messages_per_minute: 60**
+**messages: "60/minute"**
 Prevents message flooding DoS. 60/min is generous for human use while blocking
 scripted spam.
 
-**default_per_minute: 120**
-Catch-all limit for all other endpoints to prevent general API abuse.
 
 ---
 

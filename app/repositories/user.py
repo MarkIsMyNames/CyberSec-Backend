@@ -11,8 +11,8 @@ class SQLUserRepository:
     def __init__(self, session: Session) -> None:
         self._session = session
 
-    def create_user(self, username: str, password_hash: str, totp_secret_enc: bytes) -> User:
-        user = User(username=username, password_hash=password_hash, totp_secret_enc=totp_secret_enc)
+    def create_user(self, username: str, srp_salt: str, srp_verifier: str, totp_secret_enc: bytes) -> User:
+        user = User(username=username, srp_salt=srp_salt, srp_verifier=srp_verifier, totp_secret_enc=totp_secret_enc)
         self._session.add(user)
         self._session.commit()
         self._session.refresh(user)

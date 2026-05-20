@@ -9,11 +9,6 @@
     "ml_kem_variant": "ML-KEM-1024",
     "classical_kem": "X25519",
     "signature_algorithm": "Ed25519",
-    "argon2_variant": "argon2id",
-    "argon2_time_cost": 3,
-    "argon2_memory_cost_kb": 65536,
-    "argon2_parallelism": 4,
-    "argon2_hash_len": 32,
     "hkdf_info_strings": {
       "root_key": "SecureMsg-v1-root-key",
       "chain_key": "SecureMsg-v1-chain-key",

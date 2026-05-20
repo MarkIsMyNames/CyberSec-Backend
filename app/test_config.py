@@ -3,10 +3,6 @@ from app.config import config
 POSITIVE_INT_KEYS = [
     ("crypto", "nonce_length_bytes"),
     ("crypto", "max_message_bytes"),
-    ("crypto", "argon2_time_cost"),
-    ("crypto", "argon2_memory_cost_kb"),
-    ("crypto", "argon2_parallelism"),
-    ("crypto", "argon2_hash_len"),
     ("crypto", "database_key_length_bytes"),
     ("auth", "access_token_ttl_minutes"),
     ("auth", "refresh_token_ttl_days"),

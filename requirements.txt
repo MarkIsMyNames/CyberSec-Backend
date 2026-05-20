@@ -4,7 +4,7 @@ pydantic[email]==2.12.4
 sqlcipher3==0.6.2
 cryptography==43.0.1
 liboqs-python==0.15.0
-argon2-cffi==25.1.0
+srp==1.0.22
 PyJWT==2.9.0
 pyotp==2.9.0
 qrcode==8.0

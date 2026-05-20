@@ -8,9 +8,9 @@ from app.repositories.user import SQLUserRepository
 def test_creator_can_add_and_remove_members(session):
     users = SQLUserRepository(session)
     groups = SQLGroupRepository(session)
-    alice = users.create_user("alice", "h", b"t")
-    bob = users.create_user("bob", "h", b"t")
-    carol = users.create_user("carol", "h", b"t")
+    alice = users.create_user("alice", "aa", "bb", b"t")
+    bob = users.create_user("bob", "aa", "bb", b"t")
+    carol = users.create_user("carol", "aa", "bb", b"t")
     group = groups.create_group("g", creator_id=alice.id)
     assert alice.id in groups.get_members(group.id)
     groups.add_member(group.id, alice.id, bob.id)
@@ -23,9 +23,9 @@ def test_creator_can_add_and_remove_members(session):
 def test_non_creator_cannot_add_or_remove_member(session):
     users = SQLUserRepository(session)
     groups = SQLGroupRepository(session)
-    alice = users.create_user("alice", "h", b"t")
-    bob = users.create_user("bob", "h", b"t")
-    carol = users.create_user("carol", "h", b"t")
+    alice = users.create_user("alice", "aa", "bb", b"t")
+    bob = users.create_user("bob", "aa", "bb", b"t")
+    carol = users.create_user("carol", "aa", "bb", b"t")
     group = groups.create_group("g", creator_id=alice.id)
     groups.add_member(group.id, alice.id, bob.id)
     with pytest.raises(PermissionError):
@@ -37,8 +37,8 @@ def test_non_creator_cannot_add_or_remove_member(session):
 def test_store_and_fetch_skdm(session):
     users = SQLUserRepository(session)
     groups = SQLGroupRepository(session)
-    alice = users.create_user("alice", "h", b"t")
-    bob = users.create_user("bob", "h", b"t")
+    alice = users.create_user("alice", "aa", "bb", b"t")
+    bob = users.create_user("bob", "aa", "bb", b"t")
     group = groups.create_group("g", creator_id=alice.id)
     groups.add_member(group.id, alice.id, bob.id)
     groups.store_skdm(group.id, recipient_id=bob.id, skdm_ciphertext=b"skdm_enc")
@@ -50,8 +50,8 @@ def test_store_and_fetch_skdm(session):
 def test_store_group_message_and_revoke(session):
     users = SQLUserRepository(session)
     groups = SQLGroupRepository(session)
-    alice = users.create_user("alice", "h", b"t")
-    bob = users.create_user("bob", "h", b"t")
+    alice = users.create_user("alice", "aa", "bb", b"t")
+    bob = users.create_user("bob", "aa", "bb", b"t")
     group = groups.create_group("g", creator_id=alice.id)
     groups.add_member(group.id, alice.id, bob.id)
     raw_token = b"group_revoke"

@@ -20,7 +20,9 @@ def test_config_no_empty_values():
     while stack:
         path, obj = stack.pop()
         if isinstance(obj, dict):
-            stack.extend(("%s.%s" % (path, k) if path else k, v) for k, v in obj.items())
+            stack.extend(
+                ("%s.%s" % (path, k) if path else k, v) for k, v in obj.items()
+            )
         elif isinstance(obj, list):
             stack.extend(("%s[%d]" % (path, i), v) for i, v in enumerate(obj))
         else:
@@ -30,7 +32,9 @@ def test_config_no_empty_values():
 def test_config_positive_int_values():
     for section, key in POSITIVE_INT_KEYS:
         value = config[section][key]
-        assert isinstance(value, int) and value > 0, "config.%s.%s must be a positive int, got %r" % (section, key, value)
+        assert (
+            isinstance(value, int) and value > 0
+        ), "config.%s.%s must be a positive int, got %r" % (section, key, value)
 
 
 def test_config_loaded():

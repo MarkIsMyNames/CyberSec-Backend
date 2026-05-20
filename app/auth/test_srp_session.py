@@ -15,7 +15,9 @@ def clear_sessions():
 
 
 def _make_client(username: str, password: str):
-    salt, verifier = srp.create_salted_verification_key(username, password, hash_alg=_SRP_HASH, ng_type=_SRP_NG)
+    salt, verifier = srp.create_salted_verification_key(
+        username, password, hash_alg=_SRP_HASH, ng_type=_SRP_NG
+    )
     client = srp.User(username, password, hash_alg=_SRP_HASH, ng_type=_SRP_NG)
     return salt.hex(), verifier.hex(), client
 
@@ -29,7 +31,9 @@ class TestSrpInit:
     def test_returns_three_hex_strings(self):
         salt_hex, verifier_hex, client = _make_client("alice", "password")
 
-        session_id, challenge_salt_hex, server_public_hex = _do_init("alice", salt_hex, verifier_hex, client)
+        session_id, challenge_salt_hex, server_public_hex = _do_init(
+            "alice", salt_hex, verifier_hex, client
+        )
 
         assert isinstance(session_id, str) and len(session_id) == 64
         assert bytes.fromhex(challenge_salt_hex)
@@ -56,7 +60,9 @@ class TestSrpInit:
 class TestSrpVerify:
     def test_valid_handshake_returns_username_and_proof(self):
         salt_hex, verifier_hex, client = _make_client("alice", "hunter2")
-        session_id, challenge_salt_hex, server_public_hex = _do_init("alice", salt_hex, verifier_hex, client)
+        session_id, challenge_salt_hex, server_public_hex = _do_init(
+            "alice", salt_hex, verifier_hex, client
+        )
         client_proof = client.process_challenge(
             bytes.fromhex(challenge_salt_hex), bytes.fromhex(server_public_hex)
         )
@@ -69,7 +75,9 @@ class TestSrpVerify:
 
     def test_client_can_verify_server_proof(self):
         salt_hex, verifier_hex, client = _make_client("alice", "hunter2")
-        session_id, challenge_salt_hex, server_public_hex = _do_init("alice", salt_hex, verifier_hex, client)
+        session_id, challenge_salt_hex, server_public_hex = _do_init(
+            "alice", salt_hex, verifier_hex, client
+        )
         client_proof = client.process_challenge(
             bytes.fromhex(challenge_salt_hex), bytes.fromhex(server_public_hex)
         )
@@ -81,7 +89,9 @@ class TestSrpVerify:
 
     def test_session_consumed_after_verify(self):
         salt_hex, verifier_hex, client = _make_client("alice", "hunter2")
-        session_id, challenge_salt_hex, server_public_hex = _do_init("alice", salt_hex, verifier_hex, client)
+        session_id, challenge_salt_hex, server_public_hex = _do_init(
+            "alice", salt_hex, verifier_hex, client
+        )
         client_proof = client.process_challenge(
             bytes.fromhex(challenge_salt_hex), bytes.fromhex(server_public_hex)
         )
@@ -102,7 +112,9 @@ class TestSrpVerify:
 
     def test_expired_session_raises(self):
         salt_hex, verifier_hex, client = _make_client("alice", "hunter2")
-        session_id, challenge_salt_hex, server_public_hex = _do_init("alice", salt_hex, verifier_hex, client)
+        session_id, challenge_salt_hex, server_public_hex = _do_init(
+            "alice", salt_hex, verifier_hex, client
+        )
         client_proof = client.process_challenge(
             bytes.fromhex(challenge_salt_hex), bytes.fromhex(server_public_hex)
         )

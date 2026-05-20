@@ -13,9 +13,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Load env
-        run: cp .env.example .env && export $(cat .env | xargs)
-      - name: Install liboqs
-        run: sudo apt-get update && sudo apt-get install -y liboqs-dev
+        run: cat .env.example >> $GITHUB_ENV
       - run: pip install -r requirements.txt -r requirements-dev.txt
       - run: coverage run -m pytest app/ --ignore=app/security_tests -v
       - run: coverage report --fail-under=80

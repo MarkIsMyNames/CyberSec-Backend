@@ -32,7 +32,12 @@ class SQLMessageRepository:
         return msg
 
     def get_messages_for_user(self, user_id: int) -> list[type[Message]]:
-        messages = self._session.query(Message).filter_by(recipient_id=user_id).order_by(Message.sent_at).all()
+        messages = (
+            self._session.query(Message)
+            .filter_by(recipient_id=user_id)
+            .order_by(Message.sent_at)
+            .all()
+        )
         logger.debug("fetched %d messages user_id=%d", len(messages), user_id)
         return messages
 
@@ -41,12 +46,18 @@ class SQLMessageRepository:
         if msg:
             self._session.delete(msg)
         self._session.commit()
-        logger.info("receipt recorded and message deleted message_id=%d user_id=%d", message_id, user_id)
+        logger.info(
+            "receipt recorded and message deleted message_id=%d user_id=%d",
+            message_id,
+            user_id,
+        )
 
     def revoke_message(self, message_id: int, raw_token: bytes) -> bool:
         msg = self._session.get(Message, message_id)
         if msg is None:
-            logger.warning("revoke failed — message not found message_id=%d", message_id)
+            logger.warning(
+                "revoke failed — message not found message_id=%d", message_id
+            )
             return False
         if hashlib.sha256(raw_token).digest() != msg.revocation_token_hash:
             logger.warning("revoke failed — invalid token message_id=%d", message_id)

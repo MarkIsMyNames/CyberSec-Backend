@@ -11,8 +11,15 @@ class SQLUserRepository:
     def __init__(self, session: Session) -> None:
         self._session = session
 
-    def create_user(self, username: str, srp_salt: str, srp_verifier: str, totp_secret_enc: bytes) -> User:
-        user = User(username=username, srp_salt=srp_salt, srp_verifier=srp_verifier, totp_secret_enc=totp_secret_enc)
+    def create_user(
+        self, username: str, srp_salt: str, srp_verifier: str, totp_secret_enc: bytes
+    ) -> User:
+        user = User(
+            username=username,
+            srp_salt=srp_salt,
+            srp_verifier=srp_verifier,
+            totp_secret_enc=totp_secret_enc,
+        )
         self._session.add(user)
         self._session.commit()
         self._session.refresh(user)
@@ -32,7 +39,9 @@ class SQLUserRepository:
         return user
 
     def block_refresh_token(self, jti_hash: bytes, expires_at: int) -> None:
-        self._session.add(RefreshTokenBlocklist(jti_hash=jti_hash, expires_at=expires_at))
+        self._session.add(
+            RefreshTokenBlocklist(jti_hash=jti_hash, expires_at=expires_at)
+        )
         self._session.commit()
         logger.info("refresh token blocked expires_at=%d", expires_at)
 

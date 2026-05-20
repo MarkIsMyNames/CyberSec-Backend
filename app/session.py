@@ -31,8 +31,12 @@ def _make_engine():
 
     def creator():
         conn = sqlcipher.connect(db_path, check_same_thread=False)
-        conn.execute("PRAGMA key = \"x'%s'\"" % key)  # unlock SQLCipher AES-256-CBC encryption; must be first query
-        conn.execute("PRAGMA foreign_keys = ON")  # SQLite disables FK enforcement by default; must re-enable per connection
+        conn.execute(
+            "PRAGMA key = \"x'%s'\"" % key
+        )  # unlock SQLCipher AES-256-CBC encryption; must be first query
+        conn.execute(
+            "PRAGMA foreign_keys = ON"
+        )  # SQLite disables FK enforcement by default; must re-enable per connection
         return conn
 
     return create_engine(cfg["db_url"], creator=creator, poolclass=NullPool)

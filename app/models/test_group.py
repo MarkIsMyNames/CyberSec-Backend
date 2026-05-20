@@ -56,7 +56,9 @@ def test_store_group_message_and_revoke(session):
     groups.add_member(group.id, alice.id, bob.id)
     raw_token = b"group_revoke"
     token_hash = hashlib.sha256(raw_token).digest()
-    msg = groups.store_group_message(group.id, ciphertext=b"gciphertext", revocation_token_hash=token_hash)
+    msg = groups.store_group_message(
+        group.id, ciphertext=b"gciphertext", revocation_token_hash=token_hash
+    )
     assert len(groups.get_group_messages(group.id)) == 1
     assert groups.revoke_group_message(msg.id, raw_token) is True
     assert groups.get_group_messages(group.id) == []

@@ -6,7 +6,12 @@ def test_store_and_fetch_identity_key(session):
     users = SQLUserRepository(session)
     keys = SQLKeyBundleRepository(session)
     user = users.create_user("alice", "aa", "bb", b"totp")
-    keys.store_identity_key(user.id, identity_pub=b"ik" * 16, signed_prekey_pub=b"spk" * 16, signed_prekey_sig=b"sig" * 32)
+    keys.store_identity_key(
+        user.id,
+        identity_pub=b"ik" * 16,
+        signed_prekey_pub=b"spk" * 16,
+        signed_prekey_sig=b"sig" * 32,
+    )
     ik = keys.get_identity_key(user.id)
     assert ik is not None
     assert ik.identity_pub == b"ik" * 16

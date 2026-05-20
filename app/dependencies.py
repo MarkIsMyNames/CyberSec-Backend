@@ -14,14 +14,16 @@ from app.repositories.user import SQLUserRepository
 
 def get_session() -> Generator[Session, None, None]:
     with Session(_make_engine(), expire_on_commit=False) as session:
-        yield session # Yields the session to the caller
+        yield session  # Yields the session to the caller
 
 
 def get_user_repo(session: Session = Depends(get_session)) -> SQLUserRepository:
     return SQLUserRepository(session)
 
 
-def get_key_bundle_repo(session: Session = Depends(get_session)) -> SQLKeyBundleRepository:
+def get_key_bundle_repo(
+    session: Session = Depends(get_session),
+) -> SQLKeyBundleRepository:
     return SQLKeyBundleRepository(session)
 
 

@@ -22,12 +22,14 @@ class SQLKeyBundleRepository:
         signed_prekey_sig: bytes,
     ) -> None:
         self._session.execute(
-            insert(IdentityKey).values(
+            insert(IdentityKey)
+            .values(
                 user_id=user_id,
                 identity_pub=identity_pub,
                 signed_prekey_pub=signed_prekey_pub,
                 signed_prekey_sig=signed_prekey_sig,
-            ).on_conflict_do_update(
+            )
+            .on_conflict_do_update(
                 index_elements=["user_id"],
                 set_={
                     "identity_pub": identity_pub,
@@ -47,12 +49,19 @@ class SQLKeyBundleRepository:
         return key
 
     def add_one_time_prekeys(self, user_id: int, prekeys: list[bytes]) -> None:
-        self._session.add_all(OneTimePreKey(user_id=user_id, prekey_pub=pk) for pk in prekeys)
+        self._session.add_all(
+            OneTimePreKey(user_id=user_id, prekey_pub=pk) for pk in prekeys
+        )
         self._session.commit()
         logger.info("added %d one-time prekeys user_id=%d", len(prekeys), user_id)
 
     def pop_one_time_prekey(self, user_id: int) -> bytes | None:
-        key = self._session.query(OneTimePreKey).filter_by(user_id=user_id).order_by(OneTimePreKey.id).first()
+        key = (
+            self._session.query(OneTimePreKey)
+            .filter_by(user_id=user_id)
+            .order_by(OneTimePreKey.id)
+            .first()
+        )
         if key is None:
             logger.warning("no one-time prekeys available user_id=%d", user_id)
             return None
@@ -66,13 +75,17 @@ class SQLKeyBundleRepository:
         logger.debug("one-time prekey count=%d user_id=%d", count, user_id)
         return count
 
-    def store_pq_prekey(self, user_id: int, pq_prekey_pub: bytes, pq_prekey_sig: bytes) -> None:
+    def store_pq_prekey(
+        self, user_id: int, pq_prekey_pub: bytes, pq_prekey_sig: bytes
+    ) -> None:
         self._session.execute(
-            insert(PQPreKey).values(
+            insert(PQPreKey)
+            .values(
                 user_id=user_id,
                 pq_prekey_pub=pq_prekey_pub,
                 pq_prekey_sig=pq_prekey_sig,
-            ).on_conflict_do_update(
+            )
+            .on_conflict_do_update(
                 index_elements=["user_id"],
                 set_={
                     "pq_prekey_pub": pq_prekey_pub,

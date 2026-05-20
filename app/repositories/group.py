@@ -40,7 +40,9 @@ class SQLGroupRepository:
 
     def is_creator(self, group_id: int, user_id: int) -> bool:
         group = self._session.get(Group, group_id)
-        return group is not None and cast(int, cast(object, group.creator_id)) == user_id
+        return (
+            group is not None and cast(int, cast(object, group.creator_id)) == user_id
+        )
 
     def add_member(self, group_id: int, requester_id: int, user_id: int) -> None:
         if not self.is_creator(group_id, requester_id):

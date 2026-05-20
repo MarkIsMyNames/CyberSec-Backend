@@ -1,0 +1,22 @@
+name: Unit Tests
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+env:
+  SERVER_MASTER_SECRET: ${{ secrets.SERVER_MASTER_SECRET }}
+  JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install liboqs
+        run: sudo apt-get install -y liboqs-dev
+      - run: pip install -r requirements.txt -r requirements-dev.txt
+      - run: coverage run -m pytest app/ --ignore=app/security_tests -v
+      - run: coverage report --fail-under=80

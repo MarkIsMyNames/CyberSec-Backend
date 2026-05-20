@@ -1,3 +1,5 @@
+from app.config import config
+
 POSITIVE_INT_KEYS = [
     ("crypto", "nonce_length_bytes"),
     ("crypto", "max_message_bytes"),
@@ -17,8 +19,7 @@ POSITIVE_INT_KEYS = [
 
 
 def test_config_no_empty_values():
-    from app.config import get_config
-    stack = [("", get_config())]
+    stack = [("", config)]
     while stack:
         path, obj = stack.pop()
         if isinstance(obj, dict):
@@ -30,13 +31,10 @@ def test_config_no_empty_values():
 
 
 def test_config_positive_int_values():
-    from app.config import get_config
-    cfg = get_config()
     for section, key in POSITIVE_INT_KEYS:
-        value = cfg[section][key]
+        value = config[section][key]
         assert isinstance(value, int) and value > 0, "config.%s.%s must be a positive int, got %r" % (section, key, value)
 
 
-def test_config_singleton():
-    from app.config import get_config
-    assert get_config() is get_config()
+def test_config_loaded():
+    assert isinstance(config, dict) and config

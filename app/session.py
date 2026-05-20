@@ -9,12 +9,12 @@ from sqlalchemy import create_engine
 from sqlalchemy.pool import NullPool
 import sqlcipher3.dbapi2 as sqlcipher
 
-from app.config import get_config
+from app.config import config
 from app.logger import logger
 
 
 def _derive_db_key() -> str:
-    cfg = get_config()["crypto"]
+    cfg = config["crypto"]
     secret = bytes.fromhex(os.environ["SERVER_MASTER_SECRET"])
     info = cfg["hkdf_info_strings"]["database_key"].encode()
     length = cfg["database_key_length_bytes"]
@@ -24,7 +24,7 @@ def _derive_db_key() -> str:
 
 
 def _make_engine():
-    cfg = get_config()["server"]
+    cfg = config["server"]
     db_path = Path(__file__).parent.parent / cfg["db_path"]
     key = _derive_db_key()
     logger.debug("creating SQLCipher engine path=%s", db_path)

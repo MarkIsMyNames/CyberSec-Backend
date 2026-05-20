@@ -1,8 +1,8 @@
 import logging.handlers
 from pathlib import Path
-from app.config import get_config
+from app.config import config
 
-config_logger = get_config()["logging"]
+config_logger = config["logging"]
 
 handler = logging.handlers.RotatingFileHandler(
     Path(__file__).parent.parent / config_logger["log_file"],

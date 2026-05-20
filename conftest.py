@@ -1,6 +1,4 @@
-import os
 import pytest
-from fastapi.testclient import TestClient
 
 
 @pytest.fixture(autouse=False)
@@ -19,4 +17,5 @@ def db(test_env):
 @pytest.fixture
 def client(db):
     from app.main import app
+    from fastapi.testclient import TestClient
     return TestClient(app)

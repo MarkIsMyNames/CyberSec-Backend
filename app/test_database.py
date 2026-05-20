@@ -6,7 +6,7 @@ def test_init_db_creates_tables(test_env):
     init_db()
     expected = {
         "users", "identity_keys", "one_time_prekeys", "pq_prekeys",
-        "messages", "message_receipts", "groups", "group_members",
+        "messages", "groups", "group_members",
         "group_messages", "group_message_receipts",
         "sender_key_distributions", "refresh_token_blocklist",
     }

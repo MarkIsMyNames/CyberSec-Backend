@@ -42,7 +42,7 @@
     "tls_min_version": "TLSv1.3",
     "cors_origins": [],
     "db_path": "securemsg.db",
-    "db_foreign_keys": true
+    "db_url": "sqlite://"
   },
   "logging": {
     "log_file": "securemsg.log",

@@ -114,9 +114,9 @@ class SQLGroupRepository:
         if receipt:
             self._session.delete(receipt)
             self._session.flush()
-        remaining = self._session.scalar(
+        remaining: int = self._session.scalar(
             select(func.count()).where(GroupMessageReceipt.message_id == message_id)
-        )
+        ) or 0
         if remaining == 0:
             msg = self._session.get(GroupMessage, message_id)
             if msg:

@@ -20,8 +20,3 @@ class Message(Base):
     sent_at: Mapped[int] = mapped_column(default=time.time)
 
 
-class MessageReceipt(Base):
-    __tablename__ = "message_receipts"
-
-    message_id: Mapped[int] = mapped_column(ForeignKey("messages.id", ondelete="CASCADE"), primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)

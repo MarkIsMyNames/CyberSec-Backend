@@ -5,7 +5,7 @@ import hashlib
 from sqlalchemy.orm import Session
 
 from app.logger import logger
-from app.models.message import Message, MessageReceipt
+from app.models.message import Message
 
 
 class SQLMessageRepository:
@@ -26,8 +26,6 @@ class SQLMessageRepository:
             revocation_token_hash=revocation_token_hash,
         )
         self._session.add(msg)
-        self._session.flush()
-        self._session.add(MessageReceipt(message_id=msg.id, user_id=recipient_id))
         self._session.commit()
         self._session.refresh(msg)
         logger.info("stored message id=%d recipient_id=%d", msg.id, recipient_id)
@@ -39,9 +37,6 @@ class SQLMessageRepository:
         return messages
 
     def record_receipt(self, message_id: int, user_id: int) -> None:
-        receipt = self._session.get(MessageReceipt, (message_id, user_id))
-        if receipt:
-            self._session.delete(receipt)
         msg = self._session.get(Message, message_id)
         if msg:
             self._session.delete(msg)

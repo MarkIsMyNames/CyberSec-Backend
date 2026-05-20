@@ -133,3 +133,9 @@ A wildcard CORS policy lets any malicious website make authenticated API
 requests using the victim's session credentials, enabling CSRF-style attacks.
 Must be set explicitly per deployment.
 OWASP CORS Security Cheat Sheet requires explicit origin allowlists.
+
+**db_url: "sqlite://"**
+SQLAlchemy connection URL passed to `create_engine`. The empty path (`sqlite://`
+with no file component) is intentional: the actual database path is supplied via
+the `creator` callable, which opens a SQLCipher connection directly. Using a
+plain `sqlite:///path` URL would bypass SQLCipher and open an unencrypted file.

@@ -26,15 +26,13 @@ def _derive_db_key() -> str:
 def _make_engine():
     cfg = get_config()["server"]
     db_path = Path(__file__).parent.parent / cfg["db_path"]
-    foreign_keys = cfg["db_foreign_keys"]
     key = _derive_db_key()
-    logger.debug("creating SQLCipher engine path=%s foreign_keys=%s", db_path, foreign_keys)
+    logger.debug("creating SQLCipher engine path=%s", db_path)
 
     def creator():
-        conn = sqlcipher.connect(db_path)
-        conn.execute("PRAGMA key = \"x'%s'\"" % key)
-        if foreign_keys:
-            conn.execute("PRAGMA foreign_keys = ON")
+        conn = sqlcipher.connect(db_path, check_same_thread=False)
+        conn.execute("PRAGMA key = \"x'%s'\"" % key)  # unlock SQLCipher AES-256-CBC encryption; must be first query
+        conn.execute("PRAGMA foreign_keys = ON")  # SQLite disables FK enforcement by default; must re-enable per connection
         return conn
 
-    return create_engine("sqlite://", creator=creator, poolclass=NullPool)
+    return create_engine(cfg["db_url"], creator=creator, poolclass=NullPool)

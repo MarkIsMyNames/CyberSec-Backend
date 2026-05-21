@@ -11,6 +11,6 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.13"
       - run: pip install bandit
       - run: bandit -r app/ -x app/security_tests/,app/auth/test_,app/api/test_,app/models/test_,app/crypto/test_,app/middleware/test_,app/test_

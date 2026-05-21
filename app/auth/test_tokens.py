@@ -52,7 +52,7 @@ def test_refresh_token_roundtrip(test_env, db):
 def test_blocklist_refresh_token(test_env, db):
     token = issue_refresh_token(user_id=4)
     claims = verify_token(token, expected_scope="refresh")
-    revoke_token(claims["jti"], exp=int(claims["exp"]))
+    revoke_token(claims)
     with pytest.raises(InvalidTokenError):
         verify_token(token, expected_scope="refresh")
 
@@ -60,12 +60,11 @@ def test_blocklist_refresh_token(test_env, db):
 def test_revoke_token_expires_at_matches_token_exp(test_env, session):
     token = issue_refresh_token(user_id=8)
     claims = verify_token(token, expected_scope="refresh")
-    exp = int(claims["exp"])
-    revoke_token(claims["jti"], exp=exp)
+    revoke_token(claims)
     jti_hash = hashlib.sha256(claims["jti"].encode()).digest()
     row = session.get(RefreshTokenBlocklist, jti_hash)
     assert row is not None
-    assert row.expires_at == exp
+    assert row.expires_at == int(claims["exp"])
 
 
 def _advance_time(monkeypatch, delta: timedelta) -> None:

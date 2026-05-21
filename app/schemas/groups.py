@@ -10,6 +10,12 @@ GroupName = Field(min_length=config["validation"]["group_name_min_length"], max_
 
 class CreateGroupRequest(BaseModel):
     name: str = GroupName
+    initial_members: list[int] = []
+
+
+class CreateGroupResponse(BaseModel):
+    id: int
+    name: str
 
 
 class AddMemberRequest(BaseModel):

@@ -28,4 +28,5 @@ def client(db):
     from app.auth.rate_limit import limiter
     from fastapi.testclient import TestClient
     limiter.reset()
-    return TestClient(app)
+    with TestClient(app) as c:
+        yield c

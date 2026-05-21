@@ -44,7 +44,9 @@ class SQLUserRepository:
         logger.info("refresh token blocked expires_at=%d", expires_at)
 
     def is_refresh_token_blocked(self, jti_hash: bytes) -> bool:
-        blocked = self._session.get(RefreshTokenBlocklist, jti_hash) is not None
+        blocked = self._session.scalar(
+            select(RefreshTokenBlocklist).where(RefreshTokenBlocklist.jti_hash == jti_hash)
+        ) is not None
         if blocked:
             logger.warning("blocked refresh token presented")
         return blocked

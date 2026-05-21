@@ -18,13 +18,16 @@
       "totp_encryption": "SecureMsg-v1-totp-encryption",
       "database_key": "SecureMsg-v1-database-key"
     },
-    "database_key_length_bytes": 32
+    "database_key_length_bytes": 32,
+    "totp_key_length_bytes": 32,
+    "symmetric_key_length_bytes": 32
   },
   "auth": {
     "access_token_ttl_seconds": 900,
     "refresh_token_ttl_seconds": 604800,
     "preauth_token_ttl_seconds": 60,
     "srp_session_ttl_seconds": 120,
+    "secret_token_bytes": 32,
     "totp_window": 1,
     "jwt_algorithm": "HS256"
   },

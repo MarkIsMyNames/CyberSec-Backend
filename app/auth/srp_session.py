@@ -37,12 +37,12 @@ def srp_init(
     )
     challenge_salt, server_public = verifier_srp.get_challenge()
 
-    session_id = secrets.token_hex(32)  # Random 32 byte hex
+    session_id = secrets.token_hex(config["auth"]["secret_token_bytes"])
     ttl = config["auth"]["srp_session_ttl_seconds"]
     _sessions[session_id] = SRPSession(
         username=username, verifier=verifier_srp, expires_at=time.monotonic() + ttl
     )
-    logger.debug("srp session created id=%s username=%s", session_id[:8], username)
+    logger.debug("srp session created username=%s", username)
     return session_id, challenge_salt.hex(), server_public.hex()
 
 
@@ -50,12 +50,11 @@ def srp_verify(session_id: str, client_proof_hex: str) -> tuple[str, str]:
     _purge_expired()
     entry = _sessions.pop(session_id, None)
     if entry is None:
-        logger.warning("srp verify failed: session not found id=%s", session_id[:8])
+        logger.warning("srp verify failed: session not found")
         raise ValueError("SRP session not found or expired")
     if time.monotonic() > entry.expires_at:
         logger.warning(
-            "srp verify failed: session expired id=%s username=%s",
-            session_id[:8],
+            "srp verify failed: session expired username=%s",
             entry.username,
         )
         raise ValueError("SRP session not found or expired")
@@ -63,14 +62,13 @@ def srp_verify(session_id: str, client_proof_hex: str) -> tuple[str, str]:
     server_proof = entry.verifier.verify_session(bytes.fromhex(client_proof_hex))
     if server_proof is None or not entry.verifier.authenticated():
         logger.warning(
-            "srp verify failed: invalid client proof id=%s username=%s",
-            session_id[:8],
+            "srp verify failed: invalid client proof username=%s",
             entry.username,
         )
         raise ValueError("SRP client proof invalid")
 
     logger.debug(
-        "srp session verified id=%s username=%s", session_id[:8], entry.username
+        "srp session verified username=%s", entry.username
     )
     return entry.username, server_proof.hex()
 

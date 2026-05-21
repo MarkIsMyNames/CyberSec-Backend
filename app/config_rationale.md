@@ -68,6 +68,14 @@ A shorter output becomes the bottleneck — an attacker only needs to find a
 collision in the hash output rather than crack the full password space.
 32 bytes matches the AES-256 key size, keeping security levels consistent.
 
+**symmetric_key_length_bytes: 32**
+AES-256 key size used for Double Ratchet chain keys and message keys.
+32 bytes = 256 bits; matches the AEAD algorithm choice (AES-256-GCM).
+
+**totp_key_length_bytes: 32**
+AES-256 key size for encrypting TOTP secrets at rest. Kept separate from
+symmetric_key_length_bytes so the two can diverge independently if needed.
+
 **hkdf_info_strings**
 Without domain separation, a key derived for message encryption could be
 submitted as an auth token — cross-purpose key misuse attacks become possible.
@@ -88,6 +96,11 @@ OWASP recommends a maximum of 15 minutes (900 seconds) for unbound bearer tokens
 7 days (604800 seconds). Refresh tokens are long-lived by design — they exist so
 users are not forced to re-authenticate frequently. They are single-use (rotated
 on each refresh) and blocklisted on logout to limit the window if stolen.
+
+**secret_token_bytes: 32**
+256 bits of entropy used for all server-generated secret tokens: SRP session IDs,
+JWT IDs (jti), and message revocation tokens. 256 bits makes brute-force infeasible
+regardless of the token's lifetime.
 
 **srp_session_ttl_seconds: 120**
 The server holds ephemeral SRP state between /srp-init and /srp-verify.

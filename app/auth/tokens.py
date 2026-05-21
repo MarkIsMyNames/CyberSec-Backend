@@ -43,7 +43,7 @@ def issue_preauth_token(user_id: int) -> str:
     payload = {
         "sub": str(user_id),
         "scope": "totp_only",
-        "jti": secrets.token_hex(16),
+        "jti": secrets.token_hex(_AUTH_CFG["secret_token_bytes"]),
         "exp": now + _AUTH_CFG["preauth_token_ttl_seconds"],
         "iat": now,
     }
@@ -54,7 +54,7 @@ def issue_preauth_token(user_id: int) -> str:
 
 def issue_refresh_token(user_id: int) -> tuple[str, str]:
     now = int(time.time())
-    jti = secrets.token_hex(32)
+    jti = secrets.token_hex(_AUTH_CFG["secret_token_bytes"])
     payload = {
         "sub": str(user_id),
         "scope": "refresh",

@@ -56,9 +56,16 @@ def test_blocklist_refresh_token(test_env, db):
 
 def _advance_time(monkeypatch, delta: timedelta) -> None:
     future = datetime.now(tz=timezone.utc) + delta
-    monkeypatch.setattr("jwt.api_jwt.datetime", type("_FakeDatetime", (), {
-        "now": staticmethod(lambda tz=None: future),
-    }))
+    monkeypatch.setattr(
+        "jwt.api_jwt.datetime",
+        type(
+            "_FakeDatetime",
+            (),
+            {
+                "now": staticmethod(lambda tz=None: future),
+            },
+        ),
+    )
 
 
 def test_access_token_expired_after_15_minutes(test_env, monkeypatch):

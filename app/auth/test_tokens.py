@@ -4,7 +4,7 @@ import pytest
 
 from app.auth.tokens import (
     InvalidTokenError,
-    blocklist_token,
+    revoke_token,
     issue_access_token,
     issue_preauth_token,
     issue_refresh_token,
@@ -50,7 +50,7 @@ def test_refresh_token_roundtrip(test_env, db):
 def test_blocklist_refresh_token(test_env, db):
     token = issue_refresh_token(user_id=4)
     claims = verify_token(token, expected_scope="refresh")
-    blocklist_token(claims["jti"], expires_in_seconds=604800)
+    revoke_token(claims["jti"], expires_in_seconds=604800)
     with pytest.raises(InvalidTokenError):
         verify_token(token, expected_scope="refresh")
 

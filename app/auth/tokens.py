@@ -95,7 +95,8 @@ def verify_token(token: str, expected_scope: str) -> dict[str, Any]:
     return claims
 
 
-def blocklist_token(jti: str, expires_in_seconds: int) -> None:
+def revoke_token(jti: str, expires_in_seconds: int) -> None:
+    # Prevents reuse of a still-valid JWT by storing its ID until natural expiry.
     jti_hash = hashlib.sha256(jti.encode()).digest()
     expires_at = int(time.time()) + expires_in_seconds
     with open_session() as session:

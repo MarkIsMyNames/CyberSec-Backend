@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import hashlib
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session

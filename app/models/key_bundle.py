@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import time
 
 from sqlalchemy import ForeignKey, Index, LargeBinary
@@ -8,8 +6,8 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base
 
 
-class IdentityKey(Base):
-    __tablename__ = "identity_keys"
+class UserKeyBundle(Base):
+    __tablename__ = "user_key_bundles"
 
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
@@ -17,6 +15,8 @@ class IdentityKey(Base):
     identity_pub: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     signed_prekey_pub: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     signed_prekey_sig: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    pq_prekey_pub: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    pq_prekey_sig: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     updated_at: Mapped[int] = mapped_column(default=time.time)
 
 
@@ -32,12 +32,3 @@ class OneTimePreKey(Base):
     created_at: Mapped[int] = mapped_column(default=time.time)
 
 
-class PQPreKey(Base):
-    __tablename__ = "pq_prekeys"
-
-    user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
-    )
-    pq_prekey_pub: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
-    pq_prekey_sig: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
-    updated_at: Mapped[int] = mapped_column(default=time.time)

@@ -22,16 +22,15 @@ async def publish_bundle(
     current_user: User = Depends(get_current_user),
     kb_repo: SQLKeyBundleRepository = Depends(repo_dep(SQLKeyBundleRepository)),
 ) -> Response:
-    kb_repo.store_identity_key(
+    kb_repo.store_key_bundle(
         current_user.id,
         body.identity_pub_bytes(),
         body.signed_prekey_pub_bytes(),
         body.signed_prekey_sig_bytes(),
+        body.pq_prekey_pub_bytes(),
+        body.pq_prekey_sig_bytes(),
     )
     kb_repo.add_one_time_prekeys(current_user.id, body.one_time_prekeys_bytes())
-    kb_repo.store_pq_prekey(
-        current_user.id, body.pq_prekey_pub_bytes(), body.pq_prekey_sig_bytes()
-    )
     return Response(status_code=HTTPStatus.NO_CONTENT)
 
 
@@ -68,19 +67,18 @@ async def fetch_bundle(
 ) -> KeyBundleResponse:
     if user_repo.get_user_by_id(user_id) is None:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="User not found")
-    ik = kb_repo.get_identity_key(user_id)
-    pq = kb_repo.get_pq_prekey(user_id)
-    if ik is None or pq is None:
+    bundle = kb_repo.get_key_bundle(user_id)
+    if bundle is None:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND, detail="Key bundle not found"
         )
     opk = kb_repo.pop_one_time_prekey(user_id)
     return KeyBundleResponse(
         user_id=user_id,
-        identity_pub=base64.b64encode(ik.identity_pub).decode(),
-        signed_prekey_pub=base64.b64encode(ik.signed_prekey_pub).decode(),
-        signed_prekey_sig=base64.b64encode(ik.signed_prekey_sig).decode(),
+        identity_pub=base64.b64encode(bundle.identity_pub).decode(),
+        signed_prekey_pub=base64.b64encode(bundle.signed_prekey_pub).decode(),
+        signed_prekey_sig=base64.b64encode(bundle.signed_prekey_sig).decode(),
         one_time_prekey=base64.b64encode(opk).decode() if opk else None,
-        pq_prekey_pub=base64.b64encode(pq.pq_prekey_pub).decode(),
-        pq_prekey_sig=base64.b64encode(pq.pq_prekey_sig).decode(),
+        pq_prekey_pub=base64.b64encode(bundle.pq_prekey_pub).decode(),
+        pq_prekey_sig=base64.b64encode(bundle.pq_prekey_sig).decode(),
     )

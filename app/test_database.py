@@ -9,9 +9,8 @@ def test_init_db_creates_tables(test_env):
     init_db()
     expected = {
         "users",
-        "identity_keys",
+        "user_key_bundles",
         "one_time_prekeys",
-        "pq_prekeys",
         "messages",
         "groups",
         "group_members",

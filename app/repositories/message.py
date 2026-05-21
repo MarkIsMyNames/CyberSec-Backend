@@ -37,22 +37,20 @@ class SQLMessageRepository:
         logger.debug("fetched %d messages user_id=%d", len(messages), user_id)
         return messages
 
-    def get_message_for_recipient(self, message_id: int, user_id: int) -> Message | None:
-        result: Message | None = self._session.scalar(
+    def record_receipt(self, message_id: int, user_id: int) -> bool:
+        msg: Message | None = self._session.scalar(
             select(Message).where(Message.id == message_id, Message.recipient_id == user_id)
         )
-        return result
-
-    def record_receipt(self, message_id: int, user_id: int) -> None:
-        msg: Message | None = self._session.scalar(select(Message).where(Message.id == message_id))
-        if msg:
-            self._session.delete(msg)
+        if msg is None:
+            return False
+        self._session.delete(msg)
         self._session.commit()
         logger.info(
             "receipt recorded and message deleted message_id=%d user_id=%d",
             message_id,
             user_id,
         )
+        return True
 
     def revoke_message(self, message_id: int, raw_token: bytes) -> bool:
         msg: Message | None = self._session.scalar(select(Message).where(Message.id == message_id))

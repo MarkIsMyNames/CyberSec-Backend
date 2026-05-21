@@ -1,7 +1,10 @@
 from __future__ import annotations
 
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
+from typing import TypeVar
+
+T = TypeVar("T")
 
 from fastapi import Depends
 from sqlalchemy.orm import Session
@@ -20,5 +23,8 @@ def get_session() -> Generator[Session, None, None]:
         yield session
 
 
-def repo_dep(cls):
-    return lambda session=Depends(get_session): cls(session)
+def repo_dep(cls: Callable[[Session], T]) -> Callable[[Session], T]:
+    def dep(session: Session = Depends(get_session)) -> T:
+        return cls(session)
+
+    return dep

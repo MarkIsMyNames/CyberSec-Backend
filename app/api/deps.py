@@ -22,12 +22,15 @@ def get_current_user(
     try:
         claims = verify_token(credentials.credentials, expected_scope="full")
     except InvalidTokenError:
+        logger.warning("auth failed: invalid token")
         raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED, detail="Invalid token")
     user = repo.get_user_by_id(int(claims["sub"]))
     if user is None:
+        logger.warning("auth failed: user not found user_id=%s", claims["sub"])
         raise HTTPException(
             status_code=HTTPStatus.UNAUTHORIZED, detail="User not found"
         )
+    logger.debug("auth success user_id=%d", user.id)
     return user
 
 
@@ -35,7 +38,7 @@ def require_valid_refresh(body: RefreshRequest) -> dict:
     try:
         claims = verify_token(body.refresh_token, expected_scope="refresh")
     except InvalidTokenError:
-        logger.warning("refresh token invalid ip=unknown")
+        logger.warning("refresh token invalid")
         raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED, detail="Invalid refresh token")
     revoke_token(claims)
     return claims

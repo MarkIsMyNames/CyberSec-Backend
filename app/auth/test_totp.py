@@ -2,7 +2,13 @@ import base64
 
 import pyotp
 
-from app.auth.totp import decrypt_totp_secret, encrypt_totp_secret, generate_totp_secret, get_provisioning_uri, verify_totp
+from app.auth.totp import (
+    decrypt_totp_secret,
+    encrypt_totp_secret,
+    generate_totp_secret,
+    get_provisioning_uri,
+    verify_totp,
+)
 
 
 def test_generate_secret_is_base32():

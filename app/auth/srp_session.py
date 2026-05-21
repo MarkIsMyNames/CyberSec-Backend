@@ -67,9 +67,7 @@ def srp_verify(session_id: str, client_proof_hex: str) -> tuple[str, str]:
         )
         raise ValueError("SRP client proof invalid")
 
-    logger.debug(
-        "srp session verified username=%s", entry.username
-    )
+    logger.debug("srp session verified username=%s", entry.username)
     return entry.username, server_proof.hex()
 
 

@@ -15,7 +15,12 @@ from app.logger import logger
 def _totp_enc_key() -> bytes:
     secret = bytes.fromhex(os.environ["SERVER_MASTER_SECRET"])
     info = config["crypto"]["hkdf_info_strings"]["totp_encryption"].encode()
-    hkdf = HKDF(algorithm=hashes.SHA256(), length=config["crypto"]["totp_key_length_bytes"], salt=None, info=info)
+    hkdf = HKDF(
+        algorithm=hashes.SHA256(),
+        length=config["crypto"]["totp_key_length_bytes"],
+        salt=None,
+        info=info,
+    )
     return hkdf.derive(secret)
 
 
@@ -34,7 +39,9 @@ def verify_totp(secret: str, code: str) -> bool:
 
 
 def get_provisioning_uri(secret: str, username: str) -> str:
-    return pyotp.TOTP(secret).provisioning_uri(name=username, issuer_name=config["server"]["app_name"])
+    return pyotp.TOTP(secret).provisioning_uri(
+        name=username, issuer_name=config["server"]["app_name"]
+    )
 
 
 def encrypt_totp_secret(secret: str) -> bytes:

@@ -171,7 +171,7 @@ async def verify_2fa(
 
 @router.post("/refresh", response_model=TokenResponse)
 @limiter.limit(REFRESH_LIMIT)
-async def refresh_tokens(_request: Request, body: RefreshRequest) -> TokenResponse:
+async def refresh_tokens(request: Request, body: RefreshRequest) -> TokenResponse:
     try:
         claims = verify_token(body.refresh_token, expected_scope="refresh")
     except InvalidTokenError:
@@ -189,7 +189,7 @@ async def refresh_tokens(_request: Request, body: RefreshRequest) -> TokenRespon
 
 @router.post("/logout", status_code=HTTPStatus.NO_CONTENT)
 @limiter.limit(LOGOUT_LIMIT)
-async def logout(_request: Request, body: RefreshRequest) -> Response:
+async def logout(request: Request, body: RefreshRequest) -> Response:
     try:
         claims = verify_token(body.refresh_token, expected_scope="refresh")
     except InvalidTokenError:

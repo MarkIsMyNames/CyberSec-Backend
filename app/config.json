@@ -43,7 +43,10 @@
     "username_min_length": 3,
     "username_max_length": 32,
     "alnum_re": "^[a-zA-Z0-9]+$",
-    "hex_re": "^[0-9a-fA-F]+$"
+    "hex_re": "^[0-9a-fA-F]+$",
+    "group_name_min_length": 1,
+    "group_name_max_length": 64,
+    "totp_code_pattern": "^[0-9]{6}$"
   },
   "server": {
     "app_name": "SecureMsg",

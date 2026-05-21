@@ -10,6 +10,7 @@ Username = Field(
     pattern=VAL_CFG["alnum_re"],
 )
 Hex = Field(pattern=VAL_CFG["hex_re"])
+TotpCode = Field(pattern=VAL_CFG["totp_code_pattern"])
 
 
 class RegisterRequest(BaseModel):
@@ -19,7 +20,7 @@ class RegisterRequest(BaseModel):
 
 
 class SRPInitRequest(BaseModel):
-    username: str
+    username: str = Username
     client_public: str = Hex
 
 
@@ -40,7 +41,7 @@ class SRPVerifyResponse(BaseModel):
 
 
 class VerifyTOTPRequest(BaseModel):
-    totp_code: str
+    totp_code: str = TotpCode
     pre_auth_token: str
 
 

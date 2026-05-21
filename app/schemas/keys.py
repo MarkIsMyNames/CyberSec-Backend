@@ -1,15 +1,28 @@
 import base64
+import binascii
+from typing import Annotated
 
-from pydantic import BaseModel
+from pydantic import AfterValidator, BaseModel
+
+
+def _validate_b64(value: str) -> str:
+    try:
+        base64.b64decode(value, validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise ValueError("invalid base64: %s" % exc)
+    return value
+
+
+Base64 = Annotated[str, AfterValidator(_validate_b64)]
 
 
 class KeyBundleUpload(BaseModel):
-    identity_pub: str
-    signed_prekey_pub: str
-    signed_prekey_sig: str
-    one_time_prekeys: list[str]
-    pq_prekey_pub: str
-    pq_prekey_sig: str
+    identity_pub: Base64
+    signed_prekey_pub: Base64
+    signed_prekey_sig: Base64
+    one_time_prekeys: list[Base64]
+    pq_prekey_pub: Base64
+    pq_prekey_sig: Base64
 
     def identity_pub_bytes(self) -> bytes:
         return base64.b64decode(self.identity_pub)
@@ -31,7 +44,7 @@ class KeyBundleUpload(BaseModel):
 
 
 class UploadOneTimePreKeysRequest(BaseModel):
-    one_time_prekeys: list[str]
+    one_time_prekeys: list[Base64]
 
     def prekeys_bytes(self) -> list[bytes]:
         return [base64.b64decode(key) for key in self.one_time_prekeys]

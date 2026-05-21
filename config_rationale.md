@@ -4,21 +4,12 @@
 
 | Key | Value | Rationale |
 |-----|-------|-----------|
-| `aead_algorithm` | `AES-256-GCM` | Authenticated encryption with 256-bit key; provides confidentiality and integrity in one pass |
-| `nonce_length_bytes` | `12` | 96-bit nonce is the recommended size for AES-GCM; longer nonces reduce the risk of collision under random generation |
-| `nonce_strategy` | `counter` | Counter-based nonces guarantee uniqueness; random nonces risk collision after ~2^32 messages under the birthday bound |
 | `max_message_bytes` | `102400` | 100 KiB cap, matching Signal's practical ciphertext limit; prevents storage exhaustion and response amplification attacks |
-| `sender_key_rotation` | `on_membership_change` | Signal protocol requirement: sender key must be rotated whenever group membership changes to maintain forward secrecy for new/removed members |
-| `hkdf_hash` | `SHA-512` | Used for Double Ratchet and PQXDH key derivation; SHA-512 provides 256-bit security level matching ML-KEM-1024 |
-| `ml_kem_variant` | `ML-KEM-1024` | NIST PQC standard (FIPS 203); 1024 variant targets 256-bit post-quantum security level |
-| `classical_kem` | `X25519` | Elliptic-curve Diffie-Hellman over Curve25519; fast, constant-time, 128-bit classical security |
-| `signature_algorithm` | `Ed25519` | EdDSA over Curve25519; fast, constant-time, deterministic signatures for identity key and prekey authentication |
-| `argon2_variant` | `argon2id` | Hybrid of argon2i (side-channel resistance) and argon2d (GPU resistance); recommended by RFC 9106 for password hashing |
-| `argon2_time_cost` | `3` | Minimum iterations recommended by RFC 9106 for interactive logins |
-| `argon2_memory_cost_kb` | `65536` | 64 MiB; RFC 9106 recommends ≥64 MiB for interactive use |
-| `argon2_parallelism` | `4` | Matches typical server core count; higher values increase memory bandwidth requirements for attackers |
-| `argon2_hash_len` | `32` | 256-bit output; sufficient for use as a symmetric key or token |
+| `nonce_length_bytes` | `12` | 96-bit nonce is the recommended size for AES-GCM; used for TOTP secret encryption |
 | `database_key_length_bytes` | `32` | 32 bytes = 256-bit key, required by SQLCipher AES-256-CBC full-database encryption |
+| `totp_key_length_bytes` | `32` | 256-bit derived key for AES-256-GCM encryption of TOTP secrets at rest |
+| `symmetric_key_length_bytes` | `32` | 256-bit key length used for all symmetric operations on the server |
+| `hkdf_info_strings.*` | various | Domain-separation labels for HKDF; each use case gets a unique string to prevent key reuse across contexts |
 
 ## messaging
 
@@ -50,7 +41,7 @@
 
 | Key | Value | Rationale |
 |-----|-------|-----------|
-| `max_upload_bytes` | `10485760` | 10 MiB hard cap at the HTTP layer; higher than `max_message_bytes` to allow key bundle uploads and other non-message payloads |
+| `max_upload_bytes` | `102400` | 100 KiB hard cap at the HTTP layer; matches `max_message_bytes` — no legitimate request body should exceed this |
 | `tls_min_version` | `TLSv1.3` | TLS 1.3 removes weak cipher suites and legacy negotiation; 1.2 and below are deprecated |
 | `db_path` | `securemsg.db` | Relative path resolved from project root; overridden per-environment via config if needed |
 | `db_foreign_keys` | `true` | SQLite disables foreign key enforcement by default; must be enabled per-connection via `PRAGMA foreign_keys = ON` |

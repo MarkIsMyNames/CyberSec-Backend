@@ -139,6 +139,26 @@ scripted spam.
 
 ---
 
+## validation
+
+**username_min_length: 3**
+Usernames shorter than 3 characters are impractical and increase the risk of
+accidental collision with reserved names or single-character identifiers.
+
+**username_max_length: 32**
+Caps storage and display width. 32 characters covers all realistic usernames
+while preventing oversized strings being stored in the database.
+
+**alnum_re: "^[a-zA-Z0-9]+$"**
+Restricts usernames to letters and digits only, excluding characters with special
+meaning in URLs, HTML, or SQL.
+
+**hex_re: "^[0-9a-fA-F]+$"**
+Validates that SRP salt, verifier, and proof fields are valid hex strings before
+any `bytes.fromhex()` call, rejecting malformed input at the schema layer.
+
+---
+
 ## server
 
 **app_name: "SecureMsg"**

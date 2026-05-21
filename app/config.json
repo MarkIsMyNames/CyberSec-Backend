@@ -35,6 +35,12 @@
     "auth": "10/minute",
     "messages": "60/minute"
   },
+  "validation": {
+    "username_min_length": 3,
+    "username_max_length": 32,
+    "alnum_re": "^[a-zA-Z0-9]+$",
+    "hex_re": "^[0-9a-fA-F]+$"
+  },
   "server": {
     "app_name": "SecureMsg",
     "max_upload_bytes": 10485760,

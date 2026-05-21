@@ -1,6 +1,11 @@
 import pytest
+from fastapi.testclient import TestClient
 
+from app.auth.rate_limit import limiter
 from app.config import config
+from app.database import init_db
+from app.dependencies import get_session
+from app.main import app
 
 
 @pytest.fixture(autouse=False)
@@ -12,21 +17,16 @@ def test_env(tmp_path, monkeypatch):
 
 @pytest.fixture
 def db(test_env):
-    from app.database import init_db
     init_db()
 
 
 @pytest.fixture
 def session(db):
-    from app.dependencies import get_session
     yield from get_session()
 
 
 @pytest.fixture
 def client(db):
-    from app.main import app
-    from app.auth.rate_limit import limiter
-    from fastapi.testclient import TestClient
     limiter.reset()
     with TestClient(app) as c:
         yield c

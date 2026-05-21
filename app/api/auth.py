@@ -2,15 +2,13 @@ from http import HTTPStatus
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 
+from app.api.deps import require_preauth_user, require_valid_refresh
 from app.auth.rate_limit import AUTH_LIMIT, LOGOUT_LIMIT, REFRESH_LIMIT, limiter
 from app.auth.srp_session import srp_init, srp_verify
 from app.auth.tokens import (
-    InvalidTokenError,
-    revoke_token,
     issue_access_token,
     issue_preauth_token,
     issue_refresh_token,
-    verify_token,
 )
 from app.auth.totp import (
     decrypt_totp_secret,
@@ -21,6 +19,7 @@ from app.auth.totp import (
 )
 from app.dependencies import repo_dep
 from app.logger import logger
+from app.models.user import User
 from app.repositories.user import SQLUserRepository
 from app.schemas.auth import (
     RefreshRequest,
@@ -137,49 +136,27 @@ async def srp_verify_endpoint(
 async def verify_2fa(
     request: Request,
     body: VerifyTOTPRequest,
-    repo: SQLUserRepository = Depends(repo_dep(SQLUserRepository)),
+    user: User = Depends(require_preauth_user),
 ) -> TokenResponse:
-    logger.info("2fa attempt ip=%s", _client_ip(request))
-    try:
-        claims = verify_token(body.pre_auth_token, expected_scope="totp_only")
-    except InvalidTokenError:
-        logger.warning("2fa failed: invalid pre-auth token ip=%s", _client_ip(request))
-        raise HTTPException(
-            status_code=HTTPStatus.UNAUTHORIZED, detail="Invalid pre-auth token"
-        )
-    revoke_token(claims)
-    user_id = int(claims["sub"])
-    user = repo.get_user_by_id(user_id)
-    if user is None:
-        logger.warning("2fa failed: user not found user_id=%d", user_id)
-        raise HTTPException(
-            status_code=HTTPStatus.UNAUTHORIZED, detail="User not found"
-        )
+    logger.info("2fa attempt ip=%s user_id=%d", _client_ip(request), user.id)
     totp_secret = decrypt_totp_secret(user.totp_secret_enc)
     if not verify_totp(totp_secret, body.totp_code):
-        logger.warning(
-            "2fa failed: wrong totp code user_id=%d ip=%s", user_id, _client_ip(request)
-        )
+        logger.warning("2fa failed: wrong totp code user_id=%d ip=%s", user.id, _client_ip(request))
         raise HTTPException(
             status_code=HTTPStatus.UNAUTHORIZED, detail="Invalid TOTP code"
         )
-    access = issue_access_token(user_id)
-    new_refresh = issue_refresh_token(user_id)
-    logger.info("2fa success user_id=%d ip=%s", user_id, _client_ip(request))
+    access = issue_access_token(user.id)
+    new_refresh = issue_refresh_token(user.id)
+    logger.info("2fa success user_id=%d ip=%s", user.id, _client_ip(request))
     return TokenResponse(access_token=access, refresh_token=new_refresh)
 
 
 @router.post("/refresh", response_model=TokenResponse)
 @limiter.limit(REFRESH_LIMIT)
-async def refresh_tokens(request: Request, body: RefreshRequest) -> TokenResponse:
-    try:
-        claims = verify_token(body.refresh_token, expected_scope="refresh")
-    except InvalidTokenError:
-        logger.warning("token refresh failed: invalid refresh token")
-        raise HTTPException(
-            status_code=HTTPStatus.UNAUTHORIZED, detail="Invalid refresh token"
-        )
-    revoke_token(claims)
+async def refresh_tokens(
+    request: Request,
+    claims: dict = Depends(require_valid_refresh),
+) -> TokenResponse:
     user_id = int(claims["sub"])
     access = issue_access_token(user_id)
     new_refresh = issue_refresh_token(user_id)
@@ -189,14 +166,9 @@ async def refresh_tokens(request: Request, body: RefreshRequest) -> TokenRespons
 
 @router.post("/logout", status_code=HTTPStatus.NO_CONTENT)
 @limiter.limit(LOGOUT_LIMIT)
-async def logout(request: Request, body: RefreshRequest) -> Response:
-    try:
-        claims = verify_token(body.refresh_token, expected_scope="refresh")
-    except InvalidTokenError:
-        logger.warning("logout failed: invalid refresh token")
-        raise HTTPException(
-            status_code=HTTPStatus.UNAUTHORIZED, detail="Invalid refresh token"
-        )
-    revoke_token(claims)
+async def logout(
+    request: Request,
+    claims: dict = Depends(require_valid_refresh),
+) -> Response:
     logger.info("logout success user_id=%d", int(claims["sub"]))
     return Response(status_code=HTTPStatus.NO_CONTENT)

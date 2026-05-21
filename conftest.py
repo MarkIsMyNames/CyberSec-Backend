@@ -1,7 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from app.auth.rate_limit import limiter
+from app.auth.rate_limit import ip_limiter, limiter
 from app.config import config
 from app.database import init_db
 from app.dependencies import get_session
@@ -28,5 +28,6 @@ def session(db):
 @pytest.fixture
 def client(db):
     limiter.reset()
+    ip_limiter.reset()
     with TestClient(app) as c:
         yield c

@@ -42,7 +42,7 @@ class SQLKeyBundleRepository:
         self._session.commit()
         logger.info("stored identity key user_id=%d", user_id)
 
-    def get_identity_key(self, user_id: int) -> type[IdentityKey] | None:
+    def get_identity_key(self, user_id: int) -> IdentityKey | None:
         key = self._session.get(IdentityKey, user_id)
         if key is None:
             logger.debug("identity key not found user_id=%d", user_id)
@@ -97,7 +97,7 @@ class SQLKeyBundleRepository:
         self._session.commit()
         logger.info("stored PQ prekey user_id=%d", user_id)
 
-    def get_pq_prekey(self, user_id: int) -> type[PQPreKey] | None:
+    def get_pq_prekey(self, user_id: int) -> PQPreKey | None:
         key = self._session.get(PQPreKey, user_id)
         if key is None:
             logger.debug("PQ prekey not found user_id=%d", user_id)

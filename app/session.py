@@ -5,9 +5,10 @@ from pathlib import Path
 
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
-from sqlalchemy import create_engine
+from sqlalchemy import Engine, create_engine
 from sqlalchemy.pool import NullPool
 import sqlcipher3.dbapi2 as sqlcipher
+from sqlcipher3.dbapi2 import Connection
 
 from app.config import config
 from app.logger import logger
@@ -23,13 +24,13 @@ def _derive_db_key() -> str:
     return hkdf.derive(secret).hex()
 
 
-def _make_engine():
+def _make_engine() -> Engine:
     cfg = config["server"]
     db_path = Path(__file__).parent.parent / cfg["db_path"]
     key = _derive_db_key()
     logger.debug("creating SQLCipher engine path=%s", db_path)
 
-    def creator():
+    def creator() -> Connection:
         conn = sqlcipher.connect(db_path, check_same_thread=False)
         conn.execute(
             "PRAGMA key = \"x'%s'\"" % key

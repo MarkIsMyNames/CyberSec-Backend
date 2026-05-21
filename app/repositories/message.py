@@ -31,7 +31,7 @@ class SQLMessageRepository:
         logger.info("stored message id=%d recipient_id=%d", msg.id, recipient_id)
         return msg
 
-    def get_messages_for_user(self, user_id: int) -> list[type[Message]]:
+    def get_messages_for_user(self, user_id: int) -> list[Message]:
         messages = (
             self._session.query(Message)
             .filter_by(recipient_id=user_id)

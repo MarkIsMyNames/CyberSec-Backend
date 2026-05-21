@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 import hashlib
-from typing import cast
-
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session, InstrumentedAttribute
+from sqlalchemy.orm import Session
 
 from app.logger import logger
 from app.models.group import (
@@ -32,7 +30,7 @@ class SQLGroupRepository:
         )
         return group
 
-    def get_group(self, group_id: int) -> type[Group] | None:
+    def get_group(self, group_id: int) -> Group | None:
         group = self._session.get(Group, group_id)
         if group is None:
             logger.debug("group not found group_id=%d", group_id)
@@ -40,9 +38,7 @@ class SQLGroupRepository:
 
     def is_creator(self, group_id: int, user_id: int) -> bool:
         group = self._session.get(Group, group_id)
-        return (
-            group is not None and cast(int, cast(object, group.creator_id)) == user_id
-        )
+        return group is not None and group.creator_id == user_id
 
     def add_member(self, group_id: int, requester_id: int, user_id: int) -> None:
         if not self.is_creator(group_id, requester_id):
@@ -71,7 +67,7 @@ class SQLGroupRepository:
             self._session.commit()
             logger.info("removed member group_id=%d user_id=%d", group_id, user_id)
 
-    def get_members(self, group_id: int) -> list[InstrumentedAttribute[int]]:
+    def get_members(self, group_id: int) -> list[int]:
         rows = (
             self._session.query(GroupMember)
             .filter_by(group_id=group_id)
@@ -97,9 +93,7 @@ class SQLGroupRepository:
         self._session.commit()
         logger.info("stored SKDM group_id=%d recipient_id=%d", group_id, recipient_id)
 
-    def get_skdms_for_user(
-        self, user_id: int, group_id: int
-    ) -> list[InstrumentedAttribute[bytes]]:
+    def get_skdms_for_user(self, user_id: int, group_id: int) -> list[bytes]:
         rows = (
             self._session.query(SenderKeyDistribution)
             .filter_by(recipient_id=user_id, group_id=group_id)
@@ -135,7 +129,7 @@ class SQLGroupRepository:
         )
         return msg
 
-    def get_group_messages(self, group_id: int) -> list[type[GroupMessage]]:
+    def get_group_messages(self, group_id: int) -> list[GroupMessage]:
         messages = (
             self._session.query(GroupMessage)
             .filter_by(group_id=group_id)

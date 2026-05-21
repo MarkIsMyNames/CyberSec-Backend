@@ -2,7 +2,8 @@ import pytest
 
 
 def test_init_db_creates_tables(test_env):
-    from app.database import init_db, Base
+    from app.database import init_db
+    from app.models.base import Base
 
     init_db()
     expected = {

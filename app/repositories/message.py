@@ -1,8 +1,9 @@
 import hashlib
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.config import config
 from app.logger import logger
 from app.models.message import Message
 
@@ -10,6 +11,11 @@ from app.models.message import Message
 class SQLMessageRepository:
     def __init__(self, session: Session) -> None:
         self._session = session
+
+    def inbox_count(self, user_id: int) -> int:
+        return self._session.scalar(
+            select(func.count()).select_from(Message).where(Message.recipient_id == user_id)
+        ) or 0
 
     def store_message(
         self,
@@ -24,15 +30,21 @@ class SQLMessageRepository:
             ratchet_header_enc=ratchet_header_enc,
             revocation_token_hash=revocation_token_hash,
         )
+        if self.inbox_count(recipient_id) >= config["messaging"]["inbox_max_messages"]:
+            raise OverflowError("inbox full recipient_id=%d" % recipient_id)
         self._session.add(msg)
         self._session.commit()
         self._session.refresh(msg)
         logger.info("stored message id=%d recipient_id=%d", msg.id, recipient_id)
         return msg
 
-    def get_messages_for_user(self, user_id: int) -> list[Message]:
+    def get_messages_for_user(self, user_id: int, limit: int, offset: int) -> list[Message]:
         messages = list(self._session.scalars(
-            select(Message).where(Message.recipient_id == user_id).order_by(Message.sent_at)
+            select(Message)
+            .where(Message.recipient_id == user_id)
+            .order_by(Message.sent_at)
+            .limit(limit)
+            .offset(offset)
         ))
         logger.debug("fetched %d messages user_id=%d", len(messages), user_id)
         return messages

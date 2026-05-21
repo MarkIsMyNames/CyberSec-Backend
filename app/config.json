@@ -3,7 +3,7 @@
     "aead_algorithm": "AES-256-GCM",
     "nonce_length_bytes": 12,
     "nonce_strategy": "counter",
-    "max_message_bytes": 10485760,
+    "max_message_bytes": 102400,
     "sender_key_rotation": "on_membership_change",
     "hkdf_hash": "SHA-512",
     "ml_kem_variant": "ML-KEM-1024",
@@ -38,6 +38,11 @@
     "messages": "60/minute",
     "keys": "30/minute",
     "groups": "30/minute"
+  },
+  "messaging": {
+    "inbox_max_messages": 50000,
+    "page_default": 50,
+    "page_max": 100
   },
   "validation": {
     "username_min_length": 3,

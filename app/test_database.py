@@ -1,10 +1,11 @@
 import pytest
 
+from app.database import init_db
+from app.dependencies import open_session
+from app.models.base import Base
+
 
 def test_init_db_creates_tables(test_env):
-    from app.database import init_db
-    from app.models.base import Base
-
     init_db()
     expected = {
         "users",
@@ -25,7 +26,5 @@ def test_init_db_creates_tables(test_env):
 def test_open_session_requires_env(monkeypatch):
     monkeypatch.delenv("SERVER_MASTER_SECRET", raising=False)
     with pytest.raises(KeyError):
-        from app.dependencies import open_session
-
         with open_session():
             pass

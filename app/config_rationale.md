@@ -141,6 +141,10 @@ scripted spam.
 
 ## server
 
+**app_name: "SecureMsg"**
+Used as the TOTP issuer name in provisioning URIs shown to users in their
+authenticator app. Must match the name users expect to see.
+
 **max_upload_bytes: 10485760**
 Hard limit at the HTTP layer (before parsing) matching max_message_bytes.
 Prevents memory exhaustion from oversized request bodies regardless of endpoint.

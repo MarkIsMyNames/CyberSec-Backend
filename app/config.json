@@ -33,7 +33,11 @@
   },
   "rate_limits": {
     "auth": "10/minute",
-    "messages": "60/minute"
+    "refresh": "20/minute",
+    "logout": "20/minute",
+    "messages": "60/minute",
+    "keys": "30/minute",
+    "groups": "30/minute"
   },
   "validation": {
     "username_min_length": 3,

@@ -108,6 +108,12 @@ If the client abandons the handshake, this state must expire to prevent
 unbounded memory growth. 120 seconds is generous for any legitimate client
 latency while keeping the attack surface for session fixation narrow.
 
+The `session_id` returned by /srp-init is the lookup key for this state.
+It is not cryptographically secret — it does not protect the password —
+but it must be unguessable (32 random bytes / 64 hex chars from a CSPRNG)
+to prevent a third party from racing in a forged client proof against
+another user's in-flight SRP session.
+
 **preauth_token_ttl_seconds: 60**
 Without a short TTL, an attacker who steals a password has unlimited time to
 brute-force the 6-digit TOTP code (only 10^6 possibilities).
@@ -132,9 +138,26 @@ Limits credential stuffing and TOTP brute-force. 10/min allows legitimate users
 while making automated attacks impractical.
 OWASP Authentication Cheat Sheet recommends strict rate limiting on all auth endpoints.
 
+**refresh: "20/minute"**
+Refresh tokens are rotated on every use — an attacker hammering /refresh to enumerate
+valid tokens would exhaust their window quickly. 20/min is generous for legitimate
+clients (background token refresh) while making token enumeration impractical.
+
+**logout: "20/minute"**
+Logout hits the token blocklist on every call. 20/min matches the refresh limit
+and prevents blocklist-flooding DoS from an authenticated attacker.
+
 **messages: "60/minute"**
 Prevents message flooding DoS. 60/min is generous for human use while blocking
 scripted spam.
+
+**keys: "30/minute"**
+Key bundle fetches happen at session setup, not in a tight loop. 30/min is
+sufficient for any realistic client while preventing bulk key harvesting.
+
+**groups: "30/minute"**
+Group management operations (create, get info, add/remove members). 30/min covers
+normal use; tighter than messages because these operations mutate group membership.
 
 
 ---

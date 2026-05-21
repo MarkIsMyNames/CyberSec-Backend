@@ -1,0 +1,97 @@
+import base64
+import hashlib
+import secrets
+from http import HTTPStatus
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+
+from app.api.deps import get_current_user
+from app.config import config
+from app.auth.rate_limit import MESSAGES_LIMIT, limiter
+from app.dependencies import repo_dep
+from app.models.user import User
+from app.repositories.message import SQLMessageRepository
+from app.schemas.messages import MessageResponse, RevokeRequest, SendMessageRequest
+
+
+router = APIRouter()
+
+
+@router.post("/", response_model=MessageResponse, status_code=HTTPStatus.CREATED, dependencies=[Depends(get_current_user)])
+@limiter.limit(MESSAGES_LIMIT)
+async def send_message(
+    request: Request,
+    body: SendMessageRequest,
+    msg_repo: SQLMessageRepository = Depends(repo_dep(SQLMessageRepository)),
+) -> MessageResponse:
+    raw_token = secrets.token_bytes(config["auth"]["secret_token_bytes"])
+    token_hash = hashlib.sha256(raw_token).digest()
+    try:
+        msg = msg_repo.store_message(
+            recipient_id=body.recipient_id,
+            ciphertext=body.ciphertext_bytes(),
+            ratchet_header_enc=body.ratchet_header_enc_bytes(),
+            revocation_token_hash=token_hash,
+        )
+    except OverflowError:
+        raise HTTPException(
+            status_code=HTTPStatus.TOO_MANY_REQUESTS, detail="Recipient inbox is full"
+        )
+    return MessageResponse(
+        id=msg.id,
+        ciphertext=base64.b64encode(msg.ciphertext).decode(),
+        ratchet_header_enc=base64.b64encode(msg.ratchet_header_enc).decode(),
+        sent_at=int(msg.sent_at),
+        revocation_token=base64.b64encode(raw_token).decode(),
+    )
+
+
+@router.get("/", response_model=list[MessageResponse])
+@limiter.limit(MESSAGES_LIMIT)
+async def list_messages(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    msg_repo: SQLMessageRepository = Depends(repo_dep(SQLMessageRepository)),
+    limit: int = Query(default=config["messaging"]["page_default"], ge=1, le=config["messaging"]["page_max"]),
+    offset: int = Query(default=0, ge=0),
+) -> list[MessageResponse]:
+    msgs = msg_repo.get_messages_for_user(current_user.id, limit=limit, offset=offset)
+    return [
+        MessageResponse(
+            id=message.id,
+            ciphertext=base64.b64encode(message.ciphertext).decode(),
+            ratchet_header_enc=base64.b64encode(message.ratchet_header_enc).decode(),
+            sent_at=int(message.sent_at),
+        )
+        for message in msgs
+    ]
+
+
+@router.post("/{message_id}/receipt", status_code=HTTPStatus.NO_CONTENT)
+@limiter.limit(MESSAGES_LIMIT)
+async def mark_receipt(
+    request: Request,
+    message_id: int,
+    current_user: User = Depends(get_current_user),
+    msg_repo: SQLMessageRepository = Depends(repo_dep(SQLMessageRepository)),
+) -> Response:
+    if not msg_repo.record_receipt(message_id, current_user.id):
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND, detail="Message not found"
+        )
+    return Response(status_code=HTTPStatus.NO_CONTENT)
+
+
+@router.delete("/{message_id}", status_code=HTTPStatus.NO_CONTENT, dependencies=[Depends(get_current_user)])
+@limiter.limit(MESSAGES_LIMIT)
+async def revoke(
+    request: Request,
+    message_id: int,
+    body: RevokeRequest,
+    msg_repo: SQLMessageRepository = Depends(repo_dep(SQLMessageRepository)),
+) -> Response:
+    if not msg_repo.revoke_message(message_id, body.token_bytes()):
+        raise HTTPException(
+            status_code=HTTPStatus.FORBIDDEN, detail="Invalid revocation token"
+        )
+    return Response(status_code=HTTPStatus.NO_CONTENT)

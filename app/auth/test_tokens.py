@@ -1,15 +1,17 @@
+import hashlib
 from datetime import datetime, timedelta, timezone
 
 import pytest
 
 from app.auth.tokens import (
     InvalidTokenError,
-    revoke_token,
     issue_access_token,
     issue_preauth_token,
     issue_refresh_token,
+    revoke_token,
     verify_token,
 )
+from app.models.user import RefreshTokenBlocklist
 
 
 def test_issue_and_verify_access_token(test_env):
@@ -50,9 +52,20 @@ def test_refresh_token_roundtrip(test_env, db):
 def test_blocklist_refresh_token(test_env, db):
     token = issue_refresh_token(user_id=4)
     claims = verify_token(token, expected_scope="refresh")
-    revoke_token(claims["jti"], expires_in_seconds=604800)
+    revoke_token(claims["jti"], exp=int(claims["exp"]))
     with pytest.raises(InvalidTokenError):
         verify_token(token, expected_scope="refresh")
+
+
+def test_revoke_token_expires_at_matches_token_exp(test_env, session):
+    token = issue_refresh_token(user_id=8)
+    claims = verify_token(token, expected_scope="refresh")
+    exp = int(claims["exp"])
+    revoke_token(claims["jti"], exp=exp)
+    jti_hash = hashlib.sha256(claims["jti"].encode()).digest()
+    row = session.get(RefreshTokenBlocklist, jti_hash)
+    assert row is not None
+    assert row.expires_at == exp
 
 
 def _advance_time(monkeypatch, delta: timedelta) -> None:

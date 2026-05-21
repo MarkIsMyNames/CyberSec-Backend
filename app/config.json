@@ -21,8 +21,8 @@
     "database_key_length_bytes": 32
   },
   "auth": {
-    "access_token_ttl_minutes": 15,
-    "refresh_token_ttl_days": 7,
+    "access_token_ttl_seconds": 900,
+    "refresh_token_ttl_seconds": 604800,
     "preauth_token_ttl_seconds": 60,
     "srp_session_ttl_seconds": 120,
     "totp_window": 1,

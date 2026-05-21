@@ -77,12 +77,17 @@ RFC 5869 §3.2 requires distinct info strings per use case to prevent this.
 
 ## auth
 
-**access_token_ttl_minutes: 15**
+**access_token_ttl_seconds: 900**
 A stolen bearer token is valid until expiry; short TTL caps the attacker's window.
 Device-Bound Session Credentials (DBSC) would be a stronger solution — binding
 tokens to hardware keys makes theft useless — but DBSC requires browser or TPM
 support unavailable in the C++ desktop client.
-OWASP recommends a maximum of 15 minutes for unbound bearer tokens.
+OWASP recommends a maximum of 15 minutes (900 seconds) for unbound bearer tokens.
+
+**refresh_token_ttl_seconds: 604800**
+7 days (604800 seconds). Refresh tokens are long-lived by design — they exist so
+users are not forced to re-authenticate frequently. They are single-use (rotated
+on each refresh) and blocklisted on logout to limit the window if stolen.
 
 **srp_session_ttl_seconds: 120**
 The server holds ephemeral SRP state between /srp-init and /srp-verify.

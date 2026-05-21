@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
+
 from collections.abc import Generator
 
 from fastapi import Depends
@@ -12,9 +14,15 @@ from app.repositories.message import SQLMessageRepository
 from app.repositories.user import SQLUserRepository
 
 
-def get_session() -> Generator[Session, None, None]:
+@contextmanager
+def open_session() -> Generator[Session, None, None]:
     with Session(_make_engine(), expire_on_commit=False) as session:
-        yield session  # Yields the session to the caller
+        yield session
+
+
+def get_session() -> Generator[Session, None, None]:
+    with open_session() as session:
+        yield session
 
 
 def get_user_repo(session: Session = Depends(get_session)) -> SQLUserRepository:

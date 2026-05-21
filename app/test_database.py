@@ -22,9 +22,10 @@ def test_init_db_creates_tables(test_env):
     assert expected.issubset(Base.metadata.tables.keys())
 
 
-def test_get_session_requires_env(monkeypatch):
+def test_open_session_requires_env(monkeypatch):
     monkeypatch.delenv("SERVER_MASTER_SECRET", raising=False)
     with pytest.raises(KeyError):
-        from app.dependencies import get_session
+        from app.dependencies import open_session
 
-        next(get_session())
+        with open_session():
+            pass

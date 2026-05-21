@@ -35,17 +35,9 @@ class GroupMessageResponse(BaseModel):
     group_id: int
     ciphertext: str
     sent_at: int
-    revocation_token: str | None = None
 
 
 class GroupResponse(BaseModel):
     id: int
     name: str
     members: list[int]
-
-
-class RevokeGroupMessageRequest(BaseModel):
-    revocation_token: Base64
-
-    def token_bytes(self) -> bytes:
-        return base64.b64decode(self.revocation_token)

@@ -110,3 +110,19 @@ def test_logout_blocklists_refresh_token(client, session):
         "/api/v1/auth/refresh", json={"refresh_token": tokens["refresh_token"]}
     )
     assert resp.status_code == HTTPStatus.UNAUTHORIZED
+
+
+def test_logout_with_invalid_token_returns_401(client):
+    resp = client.post(
+        "/api/v1/auth/logout",
+        json={"refresh_token": "not.a.valid.token"},
+    )
+    assert resp.status_code == HTTPStatus.UNAUTHORIZED
+
+
+def test_refresh_with_invalid_token_returns_401(client):
+    resp = client.post(
+        "/api/v1/auth/refresh",
+        json={"refresh_token": "not.a.valid.token"},
+    )
+    assert resp.status_code == HTTPStatus.UNAUTHORIZED

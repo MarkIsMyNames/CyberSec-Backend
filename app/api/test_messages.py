@@ -1,5 +1,4 @@
 import base64
-import json as _json
 from http import HTTPStatus
 
 from app.security_tests.test_helper import auth_helper
@@ -18,7 +17,6 @@ def test_send_and_receive_message(client, session):
         headers={"Authorization": "Bearer %s" % alice_tok},
     )
     assert resp.status_code == HTTPStatus.CREATED
-    assert "revocation_token" in resp.json()
 
     msgs = client.get(
         "/api/v1/messages/", headers={"Authorization": "Bearer %s" % bob_tok}
@@ -54,7 +52,7 @@ def test_message_deleted_after_receipt(client, session):
 
 def test_revoke_message(client, session):
     alice, alice_tok, _ = auth_helper(client, session, "alice")
-    bob, _, _ = auth_helper(client, session, "bob")
+    bob, bob_tok, _ = auth_helper(client, session, "bob")
     msg = client.post(
         "/api/v1/messages/",
         json={
@@ -68,18 +66,19 @@ def test_revoke_message(client, session):
     resp = client.request(
         "DELETE",
         "/api/v1/messages/%d" % msg["id"],
-        content=_json.dumps({"revocation_token": msg["revocation_token"]}),
-        headers={
-            "Authorization": "Bearer %s" % alice_tok,
-            "Content-Type": "application/json",
-        },
+        headers={"Authorization": "Bearer %s" % alice_tok},
     )
     assert resp.status_code == HTTPStatus.NO_CONTENT
 
+    msgs = client.get(
+        "/api/v1/messages/", headers={"Authorization": "Bearer %s" % bob_tok}
+    ).json()
+    assert all(m["id"] != msg["id"] for m in msgs)
 
-def test_revoke_wrong_token_returns_403(client, session):
+
+def test_revoke_by_non_sender_returns_403(client, session):
     alice, alice_tok, _ = auth_helper(client, session, "alice")
-    bob, _, _ = auth_helper(client, session, "bob")
+    bob, bob_tok, _ = auth_helper(client, session, "bob")
     msg = client.post(
         "/api/v1/messages/",
         json={
@@ -93,10 +92,6 @@ def test_revoke_wrong_token_returns_403(client, session):
     resp = client.request(
         "DELETE",
         "/api/v1/messages/%d" % msg["id"],
-        content=_json.dumps({"revocation_token": base64.b64encode(b"wrong").decode()}),
-        headers={
-            "Authorization": "Bearer %s" % alice_tok,
-            "Content-Type": "application/json",
-        },
+        headers={"Authorization": "Bearer %s" % bob_tok},
     )
     assert resp.status_code == HTTPStatus.FORBIDDEN

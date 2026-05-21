@@ -1,4 +1,3 @@
-import hashlib
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -107,12 +106,12 @@ class SQLGroupRepository:
         return [r.skdm_ciphertext for r in rows]
 
     def store_group_message(
-        self, group_id: int, ciphertext: bytes, revocation_token_hash: bytes
+        self, group_id: int, sender_id: int, ciphertext: bytes
     ) -> GroupMessage:
         msg = GroupMessage(
             group_id=group_id,
+            sender_id=sender_id,
             ciphertext=ciphertext,
-            revocation_token_hash=revocation_token_hash,
         )
         self._session.add(msg)
         self._session.flush()
@@ -125,9 +124,10 @@ class SQLGroupRepository:
         self._session.commit()
         self._session.refresh(msg)
         logger.info(
-            "stored group message id=%d group_id=%d recipients=%d",
+            "stored group message id=%d group_id=%d sender_id=%d recipients=%d",
             msg.id,
             group_id,
+            sender_id,
             len(members),
         )
         return msg
@@ -139,21 +139,22 @@ class SQLGroupRepository:
         logger.debug("fetched %d group messages group_id=%d", len(messages), group_id)
         return messages
 
-    def revoke_group_message(self, message_id: int, raw_token: bytes) -> bool:
+    def revoke_group_message(self, message_id: int, sender_id: int) -> bool:
         msg: GroupMessage | None = self._session.scalar(select(GroupMessage).where(GroupMessage.id == message_id))
         if msg is None:
-            logger.warning(
-                "group message revoke failed — not found message_id=%d", message_id
-            )
+            logger.warning("group message revoke failed — not found message_id=%d", message_id)
             return False
-        if hashlib.sha256(raw_token).digest() != msg.revocation_token_hash:
+        if msg.sender_id != sender_id:
             logger.warning(
-                "group message revoke failed — invalid token message_id=%d", message_id
+                "group message revoke failed — not sender message_id=%d sender_id=%d requester_id=%d",
+                message_id,
+                msg.sender_id,
+                sender_id,
             )
             return False
         self._session.delete(msg)
         self._session.commit()
-        logger.info("group message revoked message_id=%d", message_id)
+        logger.info("group message revoked message_id=%d sender_id=%d", message_id, sender_id)
         return True
 
     def record_group_receipt(self, message_id: int, user_id: int) -> bool:

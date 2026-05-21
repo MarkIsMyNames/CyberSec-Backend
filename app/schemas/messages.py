@@ -34,11 +34,3 @@ class MessageResponse(BaseModel):
     ciphertext: str
     ratchet_header_enc: str
     sent_at: int
-    revocation_token: str | None = None # To revoke access to a message
-
-
-class RevokeRequest(BaseModel):
-    revocation_token: Base64
-
-    def token_bytes(self) -> bytes:
-        return base64.b64decode(self.revocation_token)

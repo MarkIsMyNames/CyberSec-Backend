@@ -1,5 +1,3 @@
-import hashlib
-
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -19,23 +17,23 @@ class SQLMessageRepository:
 
     def store_message(
         self,
+        sender_id: int,
         recipient_id: int,
         ciphertext: bytes,
         ratchet_header_enc: bytes,
-        revocation_token_hash: bytes,
     ) -> Message:
+        if self.inbox_count(recipient_id) >= config["messaging"]["inbox_max_messages"]:
+            raise OverflowError("inbox full recipient_id=%d" % recipient_id)
         msg = Message(
+            sender_id=sender_id,
             recipient_id=recipient_id,
             ciphertext=ciphertext,
             ratchet_header_enc=ratchet_header_enc,
-            revocation_token_hash=revocation_token_hash,
         )
-        if self.inbox_count(recipient_id) >= config["messaging"]["inbox_max_messages"]:
-            raise OverflowError("inbox full recipient_id=%d" % recipient_id)
         self._session.add(msg)
         self._session.commit()
         self._session.refresh(msg)
-        logger.info("stored message id=%d recipient_id=%d", msg.id, recipient_id)
+        logger.info("stored message id=%d sender_id=%d recipient_id=%d", msg.id, sender_id, recipient_id)
         return msg
 
     def get_messages_for_user(self, user_id: int, limit: int, offset: int) -> list[Message]:
@@ -64,17 +62,20 @@ class SQLMessageRepository:
         )
         return True
 
-    def revoke_message(self, message_id: int, raw_token: bytes) -> bool:
+    def revoke_message(self, message_id: int, sender_id: int) -> bool:
         msg: Message | None = self._session.scalar(select(Message).where(Message.id == message_id))
         if msg is None:
-            logger.warning(
-                "revoke failed — message not found message_id=%d", message_id
-            )
+            logger.warning("revoke failed — message not found message_id=%d", message_id)
             return False
-        if hashlib.sha256(raw_token).digest() != msg.revocation_token_hash:
-            logger.warning("revoke failed — invalid token message_id=%d", message_id)
+        if msg.sender_id != sender_id:
+            logger.warning(
+                "revoke failed — not sender message_id=%d sender_id=%d requester_id=%d",
+                message_id,
+                msg.sender_id,
+                sender_id,
+            )
             return False
         self._session.delete(msg)
         self._session.commit()
-        logger.info("message revoked message_id=%d", message_id)
+        logger.info("message revoked message_id=%d sender_id=%d", message_id, sender_id)
         return True

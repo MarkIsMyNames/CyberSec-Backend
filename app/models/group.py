@@ -54,11 +54,13 @@ class GroupMessage(Base):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    sender_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
     group_id: Mapped[int] = mapped_column(
         ForeignKey("groups.id", ondelete="CASCADE"), nullable=False
     )
     ciphertext: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
-    revocation_token_hash: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     sent_at: Mapped[int] = mapped_column(default=time.time)
 
 

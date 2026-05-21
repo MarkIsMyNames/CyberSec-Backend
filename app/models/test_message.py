@@ -1,5 +1,3 @@
-import hashlib
-
 from app.repositories.message import SQLMessageRepository
 from app.repositories.user import SQLUserRepository
 
@@ -7,13 +5,13 @@ from app.repositories.user import SQLUserRepository
 def test_store_and_fetch_message(session):
     users = SQLUserRepository(session)
     msgs = SQLMessageRepository(session)
-    bob = users.create_user("bob", "aa", "bb", b"totp")
-    token_hash = hashlib.sha256(b"revoke_token_1").digest()
+    alice = users.create_user("alice", "aa", "bb", b"totp")
+    bob = users.create_user("bob", "cc", "dd", b"totp")
     msg = msgs.store_message(
+        sender_id=alice.id,
         recipient_id=bob.id,
         ciphertext=b"ciphertext",
         ratchet_header_enc=b"header",
-        revocation_token_hash=token_hash,
     )
     assert msg.id is not None
     assert msgs.get_messages_for_user(bob.id, limit=100, offset=0) == [msg]
@@ -22,38 +20,38 @@ def test_store_and_fetch_message(session):
 def test_record_receipt_and_delete_when_all_received(session):
     users = SQLUserRepository(session)
     msgs = SQLMessageRepository(session)
-    bob = users.create_user("bob", "aa", "bb", b"totp")
-    token_hash = hashlib.sha256(b"tok").digest()
-    msg = msgs.store_message(bob.id, b"ct", b"hdr", token_hash)
+    alice = users.create_user("alice", "aa", "bb", b"totp")
+    bob = users.create_user("bob", "cc", "dd", b"totp")
+    msg = msgs.store_message(alice.id, bob.id, b"ct", b"hdr")
     msgs.record_receipt(msg.id, bob.id)
     assert msgs.get_messages_for_user(bob.id, limit=100, offset=0) == []
 
 
-def test_revoke_message_by_token(session):
+def test_revoke_message_by_sender(session):
     users = SQLUserRepository(session)
     msgs = SQLMessageRepository(session)
-    bob = users.create_user("bob", "aa", "bb", b"totp")
-    raw_token = b"secret_revoke_token"
-    token_hash = hashlib.sha256(raw_token).digest()
-    msg = msgs.store_message(bob.id, b"ct", b"hdr", token_hash)
-    assert msgs.revoke_message(msg.id, raw_token) is True
+    alice = users.create_user("alice", "aa", "bb", b"totp")
+    bob = users.create_user("bob", "cc", "dd", b"totp")
+    msg = msgs.store_message(alice.id, bob.id, b"ct", b"hdr")
+    assert msgs.revoke_message(msg.id, alice.id) is True
     assert msgs.get_messages_for_user(bob.id, limit=100, offset=0) == []
 
 
-def test_revoke_with_wrong_token_fails(session):
+def test_revoke_by_non_sender_fails(session):
     users = SQLUserRepository(session)
     msgs = SQLMessageRepository(session)
-    bob = users.create_user("bob", "aa", "bb", b"totp")
-    token_hash = hashlib.sha256(b"correct").digest()
-    msg = msgs.store_message(bob.id, b"ct", b"hdr", token_hash)
-    assert msgs.revoke_message(msg.id, b"wrong") is False
+    alice = users.create_user("alice", "aa", "bb", b"totp")
+    bob = users.create_user("bob", "cc", "dd", b"totp")
+    msg = msgs.store_message(alice.id, bob.id, b"ct", b"hdr")
+    assert msgs.revoke_message(msg.id, bob.id) is False
 
 
 def test_record_receipt_returns_true_for_valid_recipient(session):
     users = SQLUserRepository(session)
     msgs = SQLMessageRepository(session)
-    bob = users.create_user("bob", "aa", "bb", b"totp")
-    msg = msgs.store_message(bob.id, b"ct", b"hdr", hashlib.sha256(b"tok").digest())
+    alice = users.create_user("alice", "aa", "bb", b"totp")
+    bob = users.create_user("bob", "cc", "dd", b"totp")
+    msg = msgs.store_message(alice.id, bob.id, b"ct", b"hdr")
     assert msgs.record_receipt(msg.id, bob.id) is True
     assert msgs.get_messages_for_user(bob.id, limit=100, offset=0) == []
 
@@ -61,10 +59,11 @@ def test_record_receipt_returns_true_for_valid_recipient(session):
 def test_record_receipt_returns_false_for_wrong_user(session):
     users = SQLUserRepository(session)
     msgs = SQLMessageRepository(session)
-    bob = users.create_user("bob", "aa", "bb", b"totp")
     alice = users.create_user("alice", "aa", "bb", b"totp")
-    msg = msgs.store_message(bob.id, b"ct", b"hdr", hashlib.sha256(b"tok").digest())
-    assert msgs.record_receipt(msg.id, alice.id) is False
+    bob = users.create_user("bob", "cc", "dd", b"totp")
+    carol = users.create_user("carol", "ee", "ff", b"totp")
+    msg = msgs.store_message(alice.id, bob.id, b"ct", b"hdr")
+    assert msgs.record_receipt(msg.id, carol.id) is False
     assert msgs.get_messages_for_user(bob.id, limit=100, offset=0) == [msg]
 
 

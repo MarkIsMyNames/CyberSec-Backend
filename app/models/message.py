@@ -13,10 +13,12 @@ class Message(Base):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    sender_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
     recipient_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     ciphertext: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     ratchet_header_enc: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
-    revocation_token_hash: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     sent_at: Mapped[int] = mapped_column(default=time.time)

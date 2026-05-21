@@ -1,4 +1,3 @@
-import hashlib
 import pytest
 
 from app.repositories.group import SQLGroupRepository
@@ -54,11 +53,19 @@ def test_store_group_message_and_revoke(session):
     bob = users.create_user("bob", "aa", "bb", b"t")
     group = groups.create_group("g", creator_id=alice.id)
     groups.add_member(group.id, alice.id, bob.id)
-    raw_token = b"group_revoke"
-    token_hash = hashlib.sha256(raw_token).digest()
-    msg = groups.store_group_message(
-        group.id, ciphertext=b"gciphertext", revocation_token_hash=token_hash
-    )
+    msg = groups.store_group_message(group.id, alice.id, b"gciphertext")
     assert len(groups.get_group_messages(group.id)) == 1
-    assert groups.revoke_group_message(msg.id, raw_token) is True
+    assert groups.revoke_group_message(msg.id, alice.id) is True
     assert groups.get_group_messages(group.id) == []
+
+
+def test_non_sender_cannot_revoke_group_message(session):
+    users = SQLUserRepository(session)
+    groups = SQLGroupRepository(session)
+    alice = users.create_user("alice", "aa", "bb", b"t")
+    bob = users.create_user("bob", "aa", "bb", b"t")
+    group = groups.create_group("g", creator_id=alice.id)
+    groups.add_member(group.id, alice.id, bob.id)
+    msg = groups.store_group_message(group.id, alice.id, b"gciphertext")
+    assert groups.revoke_group_message(msg.id, bob.id) is False
+    assert len(groups.get_group_messages(group.id)) == 1

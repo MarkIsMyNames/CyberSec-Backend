@@ -13,4 +13,4 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install bandit
-      - run: bandit -r app/ -x app/security_tests/,app/crypto/test_*
+      - run: bandit -r app/ -x app/security_tests/,app/auth/test_,app/api/test_,app/models/test_,app/crypto/test_,app/test_

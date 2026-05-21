@@ -39,6 +39,10 @@ class UploadOneTimePreKeysRequest(BaseModel):
         return [base64.b64decode(key) for key in self.one_time_prekeys]
 
 
+class OneTimePreKeyCountResponse(BaseModel):
+    count: int
+
+
 class KeyBundleResponse(BaseModel):
     user_id: int
     identity_pub: str

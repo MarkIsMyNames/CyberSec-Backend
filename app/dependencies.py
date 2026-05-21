@@ -2,12 +2,12 @@ from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from typing import TypeVar
 
-T = TypeVar("T")
-
 from fastapi import Depends
 from sqlalchemy.orm import Session
 
 from app.session import _make_engine
+
+T = TypeVar("T")
 
 
 @contextmanager

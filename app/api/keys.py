@@ -7,6 +7,7 @@ from app.api.deps import get_current_user
 from app.auth.rate_limit import KEYS_LIMIT, limiter
 from app.dependencies import repo_dep
 from app.models.user import User
+from app.logger import logger
 from app.repositories.key_bundle import SQLKeyBundleRepository
 from app.repositories.user import SQLUserRepository
 from app.schemas.keys import KeyBundleResponse, KeyBundleUpload, OneTimePreKeyCountResponse, UploadOneTimePreKeysRequest
@@ -31,6 +32,11 @@ async def publish_bundle(
         body.pq_prekey_sig_bytes(),
     )
     kb_repo.add_one_time_prekeys(current_user.id, body.one_time_prekeys_bytes())
+    logger.info(
+        "key bundle published user_id=%d opk_count=%d",
+        current_user.id,
+        len(body.one_time_prekeys),
+    )
     return Response(status_code=HTTPStatus.NO_CONTENT)
 
 
@@ -43,6 +49,11 @@ async def upload_prekeys(
     kb_repo: SQLKeyBundleRepository = Depends(repo_dep(SQLKeyBundleRepository)),
 ) -> Response:
     kb_repo.add_one_time_prekeys(current_user.id, body.prekeys_bytes())
+    logger.info(
+        "one-time prekeys uploaded user_id=%d count=%d",
+        current_user.id,
+        len(body.one_time_prekeys),
+    )
     return Response(status_code=HTTPStatus.NO_CONTENT)
 
 
@@ -54,6 +65,7 @@ async def get_prekey_count(
     kb_repo: SQLKeyBundleRepository = Depends(repo_dep(SQLKeyBundleRepository)),
 ) -> OneTimePreKeyCountResponse:
     count = kb_repo.count_one_time_prekeys(current_user.id)
+    logger.debug("prekey count user_id=%d count=%d", current_user.id, count)
     return OneTimePreKeyCountResponse(count=count)
 
 
@@ -66,13 +78,16 @@ async def fetch_bundle(
     kb_repo: SQLKeyBundleRepository = Depends(repo_dep(SQLKeyBundleRepository)),
 ) -> KeyBundleResponse:
     if user_repo.get_user_by_id(user_id) is None:
+        logger.warning("fetch bundle failed: user not found user_id=%d", user_id)
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="User not found")
     bundle = kb_repo.get_key_bundle(user_id)
     if bundle is None:
+        logger.warning("fetch bundle failed: no bundle user_id=%d", user_id)
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND, detail="Key bundle not found"
         )
     opk = kb_repo.pop_one_time_prekey(user_id)
+    logger.debug("fetch bundle user_id=%d opk_available=%s", user_id, opk is not None)
     return KeyBundleResponse(
         user_id=user_id,
         identity_pub=base64.b64encode(bundle.identity_pub).decode(),

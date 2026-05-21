@@ -9,6 +9,7 @@ from app.api.deps import get_current_user
 from app.config import config
 from app.auth.rate_limit import MESSAGES_LIMIT, limiter
 from app.dependencies import repo_dep
+from app.logger import logger
 from app.models.user import User
 from app.repositories.message import SQLMessageRepository
 from app.schemas.messages import MessageResponse, RevokeRequest, SendMessageRequest
@@ -34,9 +35,11 @@ async def send_message(
             revocation_token_hash=token_hash,
         )
     except OverflowError:
+        logger.warning("send message failed: inbox full recipient_id=%d", body.recipient_id)
         raise HTTPException(
             status_code=HTTPStatus.TOO_MANY_REQUESTS, detail="Recipient inbox is full"
         )
+    logger.info("message sent message_id=%d recipient_id=%d", msg.id, body.recipient_id)
     return MessageResponse(
         id=msg.id,
         ciphertext=base64.b64encode(msg.ciphertext).decode(),
@@ -76,9 +79,15 @@ async def mark_receipt(
     msg_repo: SQLMessageRepository = Depends(repo_dep(SQLMessageRepository)),
 ) -> Response:
     if not msg_repo.record_receipt(message_id, current_user.id):
+        logger.warning(
+            "receipt failed: message not found message_id=%d user_id=%d",
+            message_id,
+            current_user.id,
+        )
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND, detail="Message not found"
         )
+    logger.debug("receipt recorded message_id=%d user_id=%d", message_id, current_user.id)
     return Response(status_code=HTTPStatus.NO_CONTENT)
 
 
@@ -91,7 +100,9 @@ async def revoke(
     msg_repo: SQLMessageRepository = Depends(repo_dep(SQLMessageRepository)),
 ) -> Response:
     if not msg_repo.revoke_message(message_id, body.token_bytes()):
+        logger.warning("revoke failed: invalid token message_id=%d", message_id)
         raise HTTPException(
             status_code=HTTPStatus.FORBIDDEN, detail="Invalid revocation token"
         )
+    logger.info("message revoked message_id=%d", message_id)
     return Response(status_code=HTTPStatus.NO_CONTENT)

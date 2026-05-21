@@ -18,7 +18,7 @@ class InvalidTokenError(Exception):
     pass
 
 
-_AUTH_CFG: dict[str, Any] = config["auth"]
+AUTH_CFG: dict[str, Any] = config["auth"]
 
 
 def _secret() -> str:
@@ -30,10 +30,10 @@ def issue_access_token(user_id: int) -> str:
     payload = {
         "sub": str(user_id),
         "scope": "full",
-        "exp": now + _AUTH_CFG["access_token_ttl_seconds"],
+        "exp": now + AUTH_CFG["access_token_ttl_seconds"],
         "iat": now,
     }
-    token = jwt.encode(payload, _secret(), algorithm=_AUTH_CFG["jwt_algorithm"])
+    token = jwt.encode(payload, _secret(), algorithm=AUTH_CFG["jwt_algorithm"])
     logger.debug("issued access token user_id=%d", user_id)
     return token
 
@@ -43,34 +43,34 @@ def issue_preauth_token(user_id: int) -> str:
     payload = {
         "sub": str(user_id),
         "scope": "totp_only",
-        "jti": secrets.token_hex(_AUTH_CFG["secret_token_bytes"]),
-        "exp": now + _AUTH_CFG["preauth_token_ttl_seconds"],
+        "jti": secrets.token_hex(AUTH_CFG["secret_token_bytes"]),
+        "exp": now + AUTH_CFG["preauth_token_ttl_seconds"],
         "iat": now,
     }
-    token = jwt.encode(payload, _secret(), algorithm=_AUTH_CFG["jwt_algorithm"])
+    token = jwt.encode(payload, _secret(), algorithm=AUTH_CFG["jwt_algorithm"])
     logger.debug("issued preauth token user_id=%d", user_id)
     return token
 
 
-def issue_refresh_token(user_id: int) -> tuple[str, str]:
+def issue_refresh_token(user_id: int) -> str:
     now = int(time.time())
-    jti = secrets.token_hex(_AUTH_CFG["secret_token_bytes"])
+    jti = secrets.token_hex(AUTH_CFG["secret_token_bytes"])
     payload = {
         "sub": str(user_id),
         "scope": "refresh",
         "jti": jti,
-        "exp": now + _AUTH_CFG["refresh_token_ttl_seconds"],
+        "exp": now + AUTH_CFG["refresh_token_ttl_seconds"],
         "iat": now,
     }
-    token = jwt.encode(payload, _secret(), algorithm=_AUTH_CFG["jwt_algorithm"])
+    token = jwt.encode(payload, _secret(), algorithm=AUTH_CFG["jwt_algorithm"])
     logger.debug("issued refresh token user_id=%d", user_id)
-    return token, jti
+    return token
 
 
 def verify_token(token: str, expected_scope: str) -> dict[str, Any]:
     try:
         claims: dict[str, Any] = jwt.decode(
-            token, _secret(), algorithms=[_AUTH_CFG["jwt_algorithm"]]
+            token, _secret(), algorithms=[AUTH_CFG["jwt_algorithm"]]
         )
     except jwt.PyJWTError as exc:
         logger.warning("token decode failed: %s", exc)

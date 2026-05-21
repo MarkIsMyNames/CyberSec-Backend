@@ -40,16 +40,17 @@ def test_tampered_token_raises(test_env):
 
 
 def test_refresh_token_roundtrip(test_env, db):
-    token, jti = issue_refresh_token(user_id=3)
+    token = issue_refresh_token(user_id=3)
     claims = verify_token(token, expected_scope="refresh")
     assert claims["sub"] == "3"
     assert claims["scope"] == "refresh"
-    assert claims["jti"] == jti
+    assert "jti" in claims
 
 
 def test_blocklist_refresh_token(test_env, db):
-    token, jti = issue_refresh_token(user_id=4)
-    blocklist_token(jti, expires_in_seconds=604800)
+    token = issue_refresh_token(user_id=4)
+    claims = verify_token(token, expected_scope="refresh")
+    blocklist_token(claims["jti"], expires_in_seconds=604800)
     with pytest.raises(InvalidTokenError):
         verify_token(token, expected_scope="refresh")
 
@@ -83,7 +84,7 @@ def test_preauth_token_expired_after_60_seconds(test_env, monkeypatch):
 
 
 def test_refresh_token_expired_after_7_days(test_env, monkeypatch):
-    token, _ = issue_refresh_token(user_id=7)
+    token = issue_refresh_token(user_id=7)
     _advance_time(monkeypatch, timedelta(days=8))
     with pytest.raises(InvalidTokenError):
         verify_token(token, expected_scope="refresh")

@@ -4,7 +4,7 @@ from http import HTTPStatus
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 
 from app.api.deps import get_current_user
-from app.auth.rate_limit import KEYS_LIMIT, limiter
+from app.auth.rate_limit import IP_KEYS_LIMIT, KEYS_LIMIT, ip_limiter, limiter
 from app.dependencies import repo_dep
 from app.models.user import User
 from app.logger import logger
@@ -17,6 +17,7 @@ router = APIRouter()
 
 @router.post("/bundle", status_code=HTTPStatus.NO_CONTENT)
 @limiter.limit(KEYS_LIMIT)
+@ip_limiter.limit(IP_KEYS_LIMIT)
 async def publish_bundle(
     request: Request,
     body: KeyBundleUpload,
@@ -42,6 +43,7 @@ async def publish_bundle(
 
 @router.post("/prekeys", status_code=HTTPStatus.NO_CONTENT)
 @limiter.limit(KEYS_LIMIT)
+@ip_limiter.limit(IP_KEYS_LIMIT)
 async def upload_prekeys(
     request: Request,
     body: UploadOneTimePreKeysRequest,
@@ -59,6 +61,7 @@ async def upload_prekeys(
 
 @router.get("/prekeys/count", response_model=OneTimePreKeyCountResponse)
 @limiter.limit(KEYS_LIMIT)
+@ip_limiter.limit(IP_KEYS_LIMIT)
 async def get_prekey_count(
     request: Request,
     current_user: User = Depends(get_current_user),
@@ -71,6 +74,7 @@ async def get_prekey_count(
 
 @router.get("/{user_id}", response_model=KeyBundleResponse, dependencies=[Depends(get_current_user)])
 @limiter.limit(KEYS_LIMIT)
+@ip_limiter.limit(IP_KEYS_LIMIT)
 async def fetch_bundle(
     request: Request,
     user_id: int,

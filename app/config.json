@@ -23,10 +23,13 @@
   "rate_limits": {
     "auth": "10/minute",
     "refresh": "20/minute",
-    "logout": "20/minute",
-    "messages": "60/minute",
+    "logout": "5/minute",
+    "messages": "30/minute",
     "keys": "30/minute",
-    "groups": "30/minute"
+    "groups": "15/minute",
+    "ip_messages": "150/minute",
+    "ip_keys": "150/minute",
+    "ip_groups": "75/minute"
   },
   "messaging": {
     "inbox_max_messages": 50000,

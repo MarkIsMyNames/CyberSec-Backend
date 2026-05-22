@@ -3,6 +3,7 @@ from http import HTTPStatus
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 
 from app.api.deps import require_preauth_user, require_valid_refresh
+from app.auth.tokens import TokenClaims
 from app.auth.rate_limit import AUTH_LIMIT, LOGOUT_LIMIT, REFRESH_LIMIT, limiter
 from app.auth.srp_session import srp_init, srp_verify
 from app.auth.tokens import (
@@ -154,7 +155,7 @@ async def verify_2fa(
 @limiter.limit(REFRESH_LIMIT)
 async def refresh_tokens(
     request: Request,
-    claims: dict = Depends(require_valid_refresh),
+    claims: TokenClaims = Depends(require_valid_refresh),
 ) -> TokenResponse:
     user_id = int(claims["sub"])
     access = issue_access_token(user_id)
@@ -167,7 +168,7 @@ async def refresh_tokens(
 @limiter.limit(LOGOUT_LIMIT)
 async def logout(
     request: Request,
-    claims: dict = Depends(require_valid_refresh),
+    claims: TokenClaims = Depends(require_valid_refresh),
 ) -> Response:
     logger.info("logout success user_id=%d", int(claims["sub"]))
     return Response(status_code=HTTPStatus.NO_CONTENT)

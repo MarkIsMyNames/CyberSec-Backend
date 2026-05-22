@@ -1,8 +1,9 @@
-from fastapi import Depends, HTTPException
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from http import HTTPStatus
 
-from app.auth.tokens import InvalidTokenError, revoke_token, verify_token
+from fastapi import Depends, HTTPException
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+
+from app.auth.tokens import InvalidTokenError, TokenClaims, revoke_token, verify_token
 from app.dependencies import repo_dep
 from app.logger import logger
 from app.models.group import Group
@@ -34,7 +35,7 @@ def get_current_user(
     return user
 
 
-def require_valid_refresh(body: RefreshRequest) -> dict:
+def require_valid_refresh(body: RefreshRequest) -> TokenClaims:
     try:
         claims = verify_token(body.refresh_token, expected_scope="refresh")
     except InvalidTokenError:

@@ -1,8 +1,9 @@
 import hashlib
-from typing import Any
 import os
 import secrets
 import time
+from typing import TypedDict
+
 import jwt
 
 from app.config import config
@@ -13,6 +14,14 @@ from app.repositories.user import SQLUserRepository
 
 class InvalidTokenError(Exception):
     pass
+
+
+class TokenClaims(TypedDict, total=False):
+    sub: str
+    scope: str
+    jti: str
+    exp: int
+    iat: int
 
 
 AUTH_CFG: dict[str, Any] = config["auth"]
@@ -64,9 +73,9 @@ def issue_refresh_token(user_id: int) -> str:
     return token
 
 
-def verify_token(token: str, expected_scope: str) -> dict[str, Any]:
+def verify_token(token: str, expected_scope: str) -> TokenClaims:
     try:
-        claims: dict[str, Any] = jwt.decode(
+        claims: TokenClaims = jwt.decode(
             token, _secret(), algorithms=[AUTH_CFG["jwt_algorithm"]]
         )
     except jwt.PyJWTError as exc:
@@ -92,7 +101,7 @@ def verify_token(token: str, expected_scope: str) -> dict[str, Any]:
     return claims
 
 
-def revoke_token(claims: dict[str, Any]) -> None:
+def revoke_token(claims: TokenClaims) -> None:
     # Prevents reuse of a still-valid JWT by storing its ID until natural expiry.
     jti_hash = hashlib.sha256(claims["jti"].encode()).digest()
     exp = int(claims["exp"])

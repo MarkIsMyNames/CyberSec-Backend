@@ -16,7 +16,7 @@ class SQLGroupRepository:
         self._session = session
 
     def create_group(self, name: str, creator_id: int) -> Group:
-        group = Group(name=name, creator_id=creator_id)
+        group = Group(name=name, creator_id=creator_id, epoch=0)
         self._session.add(group)
         self._session.flush()
         self._session.add(GroupMember(group_id=group.id, user_id=creator_id))
@@ -48,12 +48,14 @@ class SQLGroupRepository:
         exists: GroupMember | None = self._session.scalar(
             select(GroupMember).where(GroupMember.group_id == group_id, GroupMember.user_id == user_id)
         )
-        if not exists:
-            self._session.add(GroupMember(group_id=group_id, user_id=user_id))
-            self._session.commit()
-            logger.info("added member group_id=%d user_id=%d", group_id, user_id)
+        if exists:
+            logger.debug("add_member no-op — already a member group_id=%d user_id=%d", group_id, user_id)
+            return
+        self._session.add(GroupMember(group_id=group_id, user_id=user_id))
+        self._session.commit()
+        logger.info("added member group_id=%d user_id=%d", group_id, user_id)
 
-    def remove_member(self, group_id: int, requester_id: int, user_id: int) -> None:
+    def remove_member(self, group_id: int, requester_id: int, user_id: int, skdm_ciphertexts: dict[int, bytes] | None = None) -> None:
         is_self = requester_id == user_id
         if not is_self and not self.is_creator(group_id, requester_id):
             logger.warning(
@@ -68,7 +70,12 @@ class SQLGroupRepository:
             select(GroupMember).where(GroupMember.group_id == group_id, GroupMember.user_id == user_id)
         )
         if member is None:
-            logger.warning("remove_member target not in group group_id=%d user_id=%d", group_id, user_id)
+            logger.warning(
+                "remove_member target not in group group_id=%d requester_id=%d target_id=%d",
+                group_id,
+                requester_id,
+                user_id,
+            )
             raise ValueError("user is not a member of this group")
 
         self._session.delete(member)
@@ -77,27 +84,48 @@ class SQLGroupRepository:
             select(func.count()).select_from(GroupMember).where(GroupMember.group_id == group_id)
         ) or 0
         group: Group | None = self._session.scalar(select(Group).where(Group.id == group_id))
+        assert group is not None, "group %d vanished mid-transaction" % group_id
 
         if remaining <= 1:
-            if group is not None:
-                self._session.delete(group)
-                logger.info("group deleted — only one member remaining group_id=%d", group_id)
+            self._session.delete(group)
+            logger.info("group deleted — only one member remaining group_id=%d", group_id)
         else:
-            if group is not None and group.creator_id == user_id:
+            group.epoch += 1
+            if group.creator_id == user_id:
                 new_creator: GroupMember | None = self._session.scalar(
                     select(GroupMember)
                     .where(GroupMember.group_id == group_id)
                     .order_by(GroupMember.user_id)
                     .limit(1)
                 )
-                if new_creator is not None:
-                    group.creator_id = new_creator.user_id
-                    logger.info(
-                        "group creator reassigned group_id=%d new_creator_id=%d",
-                        group_id,
-                        new_creator.user_id,
+                if new_creator is None:
+                    raise RuntimeError("no remaining member to promote to creator group_id=%d" % group_id)
+                group.creator_id = new_creator.user_id
+                logger.info(
+                    "group creator reassigned group_id=%d new_creator_id=%d",
+                    group_id,
+                    new_creator.user_id,
+                )
+            stale_skdms = list(self._session.scalars(
+                select(SenderKeyDistribution).where(SenderKeyDistribution.group_id == group_id)
+            ))
+            for skdm in stale_skdms:
+                self._session.delete(skdm)
+            self._session.flush()
+            if not is_self and skdm_ciphertexts:
+                self._session.add_all(
+                    SenderKeyDistribution(
+                        group_id=group_id,
+                        recipient_id=recipient_id,
+                        skdm_ciphertext=ciphertext,
+                        epoch=group.epoch,
                     )
-            logger.info("removed member group_id=%d user_id=%d remaining=%d", group_id, user_id, remaining)
+                    for recipient_id, ciphertext in skdm_ciphertexts.items()
+                )
+            logger.info(
+                "removed member group_id=%d user_id=%d epoch=%d remaining=%d",
+                group_id, user_id, group.epoch, remaining,
+            )
         self._session.commit()
 
     def get_groups_for_user(self, user_id: int) -> list[Group]:
@@ -122,32 +150,40 @@ class SQLGroupRepository:
             select(GroupMember).where(GroupMember.group_id == group_id, GroupMember.user_id == user_id)
         ) is not None
 
-    def store_skdm(
-        self, group_id: int, recipient_id: int, skdm_ciphertext: bytes
+    def store_skdms(
+        self, group_id: int, skdm_ciphertexts: dict[int, bytes]
     ) -> None:
-        self._session.add(
+        group: Group | None = self._session.scalar(select(Group).where(Group.id == group_id))
+        if group is None:
+            raise ValueError("group %d does not exist" % group_id)
+        self._session.add_all(
             SenderKeyDistribution(
                 group_id=group_id,
                 recipient_id=recipient_id,
-                skdm_ciphertext=skdm_ciphertext,
+                skdm_ciphertext=ciphertext,
+                epoch=group.epoch,
             )
+            for recipient_id, ciphertext in skdm_ciphertexts.items()
         )
         self._session.commit()
-        logger.info("stored SKDM group_id=%d recipient_id=%d", group_id, recipient_id)
+        logger.info("stored %d SKDMs group_id=%d epoch=%d", len(skdm_ciphertexts), group_id, group.epoch)
 
-    def get_skdms_for_user(self, user_id: int, group_id: int) -> list[bytes]:
+    def pop_skdms_for_user(self, user_id: int, group_id: int) -> list[tuple[int, bytes]]:
         rows = list(self._session.scalars(
             select(SenderKeyDistribution)
             .where(SenderKeyDistribution.recipient_id == user_id, SenderKeyDistribution.group_id == group_id)
-            .order_by(SenderKeyDistribution.created_at)
+            .order_by(SenderKeyDistribution.epoch.desc())
         ))
-        logger.debug(
-            "fetched %d SKDMs user_id=%d group_id=%d", len(rows), user_id, group_id
-        )
-        return [r.skdm_ciphertext for r in rows]
+        for row in rows:
+            self._session.delete(row)
+        self._session.commit()
+        if not rows:
+            return []
+        logger.info("popped %d SKDMs user_id=%d group_id=%d", len(rows), user_id, group_id)
+        return [(r.epoch, r.skdm_ciphertext) for r in rows]
 
     def store_group_message(
-        self, group_id: int, sender_id: int, ciphertext: bytes
+        self, group_id: int, sender_id: int, epoch: int, ciphertext: bytes
     ) -> GroupMessage:
         recipients = list(self._session.scalars(
             select(GroupMember).where(
@@ -158,6 +194,7 @@ class SQLGroupRepository:
         msg = GroupMessage(
             group_id=group_id,
             sender_id=sender_id,
+            epoch=epoch,
             ciphertext=ciphertext,
         )
         self._session.add(msg)
@@ -222,8 +259,9 @@ class SQLGroupRepository:
             if msg:
                 self._session.delete(msg)
             logger.info(
-                "group message deleted — all receipts acknowledged message_id=%d",
+                "group message deleted — all receipts acknowledged message_id=%d last_user_id=%d",
                 message_id,
+                user_id,
             )
         else:
             logger.debug(

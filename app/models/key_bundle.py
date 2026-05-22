@@ -1,5 +1,3 @@
-import time
-
 from sqlalchemy import ForeignKey, Index, LargeBinary
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -17,7 +15,6 @@ class UserKeyBundle(Base):
     signed_prekey_sig: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     pq_prekey_pub: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     pq_prekey_sig: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
-    updated_at: Mapped[int] = mapped_column(default=time.time)
 
 
 class OneTimePreKey(Base):
@@ -29,6 +26,3 @@ class OneTimePreKey(Base):
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     prekey_pub: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
-    created_at: Mapped[int] = mapped_column(default=time.time)
-
-

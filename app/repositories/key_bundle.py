@@ -38,7 +38,6 @@ class SQLKeyBundleRepository:
                     "signed_prekey_sig": signed_prekey_sig,
                     "pq_prekey_pub": pq_prekey_pub,
                     "pq_prekey_sig": pq_prekey_sig,
-                    "updated_at": func.strftime("%s", "now"),
                 },
             )
         )

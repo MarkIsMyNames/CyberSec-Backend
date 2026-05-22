@@ -53,7 +53,6 @@ class GroupMessageResponse(BaseModel):
     group_id: int
     epoch: int
     ciphertext: str
-    sent_at: int
 
 
 class GroupResponse(BaseModel):

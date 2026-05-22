@@ -43,7 +43,6 @@ async def send_message(
         sender_id=msg.sender_id,
         ciphertext=base64.b64encode(msg.ciphertext).decode(),
         ratchet_header_enc=base64.b64encode(msg.ratchet_header_enc).decode(),
-        sent_at=int(msg.sent_at),
     )
 
 
@@ -64,7 +63,6 @@ async def list_messages(
             sender_id=message.sender_id,
             ciphertext=base64.b64encode(message.ciphertext).decode(),
             ratchet_header_enc=base64.b64encode(message.ratchet_header_enc).decode(),
-            sent_at=int(message.sent_at),
         )
         for message in msgs
     ]

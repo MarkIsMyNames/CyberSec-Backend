@@ -1,5 +1,3 @@
-import time
-
 from sqlalchemy import ForeignKey, Index, LargeBinary, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -15,7 +13,6 @@ class Group(Base):
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     epoch: Mapped[int] = mapped_column(default=0, nullable=False)
-    created_at: Mapped[int] = mapped_column(default=time.time)
 
 
 class GroupMember(Base):
@@ -49,7 +46,7 @@ class SenderKeyDistribution(Base):
 class GroupMessage(Base):
     __tablename__ = "group_messages"
     __table_args__ = (
-        Index("ix_group_messages_group_id_sent_at", "group_id", "sent_at"),
+        Index("ix_group_messages_group_id_id", "group_id", "id"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -61,7 +58,6 @@ class GroupMessage(Base):
     )
     epoch: Mapped[int] = mapped_column(nullable=False)
     ciphertext: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
-    sent_at: Mapped[int] = mapped_column(default=time.time)
 
 
 class GroupMessageReceipt(Base):

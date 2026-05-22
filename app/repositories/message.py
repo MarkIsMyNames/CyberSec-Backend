@@ -22,8 +22,6 @@ class SQLMessageRepository:
         ciphertext: bytes,
         ratchet_header_enc: bytes,
     ) -> Message:
-        if self.inbox_count(recipient_id) >= config["messaging"]["inbox_max_messages"]:
-            raise OverflowError("inbox full recipient_id=%d" % recipient_id)
         msg = Message(
             sender_id=sender_id,
             recipient_id=recipient_id,
@@ -31,6 +29,10 @@ class SQLMessageRepository:
             ratchet_header_enc=ratchet_header_enc,
         )
         self._session.add(msg)
+        self._session.flush()
+        if self.inbox_count(recipient_id) > config["messaging"]["inbox_max_messages"]:
+            self._session.rollback()
+            raise OverflowError("inbox full recipient_id=%d" % recipient_id)
         self._session.commit()
         self._session.refresh(msg)
         logger.info("stored message id=%d sender_id=%d recipient_id=%d", msg.id, sender_id, recipient_id)
@@ -40,7 +42,7 @@ class SQLMessageRepository:
         messages = list(self._session.scalars(
             select(Message)
             .where(Message.recipient_id == user_id)
-            .order_by(Message.sent_at)
+            .order_by(Message.id)
             .limit(limit)
             .offset(offset)
         ))

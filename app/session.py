@@ -54,5 +54,6 @@ def get_engine() -> Engine:
                 engine = candidate
             else:
                 candidate.dispose()
-    assert engine is not None
+    if engine is None:
+        raise RuntimeError("engine initialisation failed")
     return engine

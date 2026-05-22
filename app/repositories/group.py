@@ -93,12 +93,14 @@ class SQLGroupRepository:
                 .values(epoch=Group.epoch + 1)
                 .returning(Group.epoch)
             )
-            assert new_epoch is not None
+            if new_epoch is None:
+                raise RuntimeError("epoch update returned no value for group_id=%d" % group_id)
 
             current_creator_id = self._session.scalar(
                 select(Group.creator_id).where(Group.id == group_id)
             )
-            assert current_creator_id is not None, "group %d vanished mid-transaction" % group_id
+            if current_creator_id is None:
+                raise RuntimeError("group %d vanished mid-transaction" % group_id)
 
             if current_creator_id == user_id:
                 new_creator: GroupMember | None = self._session.scalar(

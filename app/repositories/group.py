@@ -54,30 +54,51 @@ class SQLGroupRepository:
             logger.info("added member group_id=%d user_id=%d", group_id, user_id)
 
     def remove_member(self, group_id: int, requester_id: int, user_id: int) -> None:
-        if not self.is_creator(group_id, requester_id):
+        is_self = requester_id == user_id
+        if not is_self and not self.is_creator(group_id, requester_id):
             logger.warning(
-                "unauthorised remove_member group_id=%d requester_id=%d",
+                "unauthorised remove_member group_id=%d requester_id=%d target_id=%d",
                 group_id,
                 requester_id,
+                user_id,
             )
-            raise PermissionError("only the group creator can remove members")
+            raise PermissionError("only the group creator can remove other members")
+
         member: GroupMember | None = self._session.scalar(
             select(GroupMember).where(GroupMember.group_id == group_id, GroupMember.user_id == user_id)
         )
-        if member:
-            self._session.delete(member)
-            self._session.flush()
-            remaining = self._session.scalar(
-                select(func.count()).select_from(GroupMember).where(GroupMember.group_id == group_id)
-            ) or 0
-            if remaining <= 1:
-                group = self._session.scalar(select(Group).where(Group.id == group_id))
-                if group:
-                    self._session.delete(group)
-                    logger.info("group deleted — only one member remaining group_id=%d", group_id)
-            else:
-                logger.info("removed member group_id=%d user_id=%d remaining=%d", group_id, user_id, remaining)
-            self._session.commit()
+        if member is None:
+            logger.warning("remove_member target not in group group_id=%d user_id=%d", group_id, user_id)
+            raise ValueError("user is not a member of this group")
+
+        self._session.delete(member)
+        self._session.flush()
+        remaining = self._session.scalar(
+            select(func.count()).select_from(GroupMember).where(GroupMember.group_id == group_id)
+        ) or 0
+        group: Group | None = self._session.scalar(select(Group).where(Group.id == group_id))
+
+        if remaining <= 1:
+            if group is not None:
+                self._session.delete(group)
+                logger.info("group deleted — only one member remaining group_id=%d", group_id)
+        else:
+            if group is not None and group.creator_id == user_id:
+                new_creator: GroupMember | None = self._session.scalar(
+                    select(GroupMember)
+                    .where(GroupMember.group_id == group_id)
+                    .order_by(GroupMember.user_id)
+                    .limit(1)
+                )
+                if new_creator is not None:
+                    group.creator_id = new_creator.user_id
+                    logger.info(
+                        "group creator reassigned group_id=%d new_creator_id=%d",
+                        group_id,
+                        new_creator.user_id,
+                    )
+            logger.info("removed member group_id=%d user_id=%d remaining=%d", group_id, user_id, remaining)
+        self._session.commit()
 
     def get_members(self, group_id: int) -> list[int]:
         rows = list(self._session.scalars(
@@ -118,8 +139,11 @@ class SQLGroupRepository:
     def store_group_message(
         self, group_id: int, sender_id: int, ciphertext: bytes
     ) -> GroupMessage:
-        members = list(self._session.scalars(
-            select(GroupMember).where(GroupMember.group_id == group_id)
+        recipients = list(self._session.scalars(
+            select(GroupMember).where(
+                GroupMember.group_id == group_id,
+                GroupMember.user_id != sender_id,
+            )
         ))
         msg = GroupMessage(
             group_id=group_id,
@@ -129,7 +153,7 @@ class SQLGroupRepository:
         self._session.add(msg)
         self._session.flush()
         self._session.add_all(
-            GroupMessageReceipt(message_id=msg.id, user_id=m.user_id) for m in members
+            GroupMessageReceipt(message_id=msg.id, user_id=r.user_id) for r in recipients
         )
         self._session.commit()
         self._session.refresh(msg)
@@ -138,7 +162,7 @@ class SQLGroupRepository:
             msg.id,
             group_id,
             sender_id,
-            len(members),
+            len(recipients),
         )
         return msg
 

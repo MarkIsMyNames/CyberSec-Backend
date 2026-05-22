@@ -100,6 +100,16 @@ class SQLGroupRepository:
             logger.info("removed member group_id=%d user_id=%d remaining=%d", group_id, user_id, remaining)
         self._session.commit()
 
+    def get_groups_for_user(self, user_id: int) -> list[Group]:
+        rows = list(self._session.scalars(
+            select(Group)
+            .join(GroupMember, GroupMember.group_id == Group.id)
+            .where(GroupMember.user_id == user_id)
+            .order_by(Group.id)
+        ))
+        logger.debug("fetched %d groups user_id=%d", len(rows), user_id)
+        return rows
+
     def get_members(self, group_id: int) -> list[int]:
         rows = list(self._session.scalars(
             select(GroupMember).where(GroupMember.group_id == group_id).order_by(GroupMember.user_id)

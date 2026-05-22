@@ -17,11 +17,13 @@ def test_send_and_receive_message(client, session):
         headers={"Authorization": "Bearer %s" % alice_tok},
     )
     assert resp.status_code == HTTPStatus.CREATED
+    assert resp.json()["sender_id"] == alice.id
 
     msgs = client.get(
         "/api/v1/messages/", headers={"Authorization": "Bearer %s" % bob_tok}
     ).json()
     assert len(msgs) == 1
+    assert msgs[0]["sender_id"] == alice.id
     assert msgs[0]["ciphertext"] == base64.b64encode(b"encrypted").decode()
 
 

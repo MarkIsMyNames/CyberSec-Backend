@@ -31,6 +31,7 @@ class SendMessageRequest(BaseModel):
 
 class MessageResponse(BaseModel):
     id: int
+    sender_id: int
     ciphertext: str
     ratchet_header_enc: str
     sent_at: int

@@ -102,3 +102,32 @@ def test_fetch_nonexistent_user_returns_404(client, session):
     _, tok, _ = auth_helper(client, session, "alice")
     resp = client.get("/api/v1/keys/9999", headers={"Authorization": "Bearer %s" % tok})
     assert resp.status_code == HTTPStatus.NOT_FOUND
+
+
+def test_lookup_identity_pub_by_username(client, session):
+    alice, alice_tok, _ = auth_helper(client, session, "alice")
+    bundle = _make_bundle()
+    client.post(
+        "/api/v1/keys/bundle",
+        json=bundle,
+        headers={"Authorization": "Bearer %s" % alice_tok},
+    )
+    _, bob_tok, _ = auth_helper(client, session, "bob")
+    resp = client.get(
+        "/api/v1/keys/lookup/by-username",
+        params={"username": "alice"},
+        headers={"Authorization": "Bearer %s" % bob_tok},
+    )
+    assert resp.status_code == HTTPStatus.OK
+    assert resp.json()["user_id"] == alice.id
+    assert resp.json()["identity_pub"] == bundle["identity_pub"]
+
+
+def test_lookup_identity_pub_unknown_username_returns_404(client, session):
+    _, tok, _ = auth_helper(client, session, "alice")
+    resp = client.get(
+        "/api/v1/keys/lookup/by-username",
+        params={"username": "nobody"},
+        headers={"Authorization": "Bearer %s" % tok},
+    )
+    assert resp.status_code == HTTPStatus.NOT_FOUND

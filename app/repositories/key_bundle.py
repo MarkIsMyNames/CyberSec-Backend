@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.logger import logger
 from app.models.key_bundle import OneTimePreKey, UserKeyBundle
+from app.models.user import User
 
 
 class SQLKeyBundleRepository:
@@ -77,4 +78,17 @@ class SQLKeyBundleRepository:
         ) or 0
         logger.debug("one-time prekey count=%d user_id=%d", count, user_id)
         return count
+
+    def get_identity_pub_by_username(self, username: str) -> tuple[int, bytes] | None:
+        row = self._session.execute(
+            select(User.id, UserKeyBundle.identity_pub)
+            .join(UserKeyBundle, UserKeyBundle.user_id == User.id)
+            .where(User.username == username)
+        ).first()
+        if row is None:
+            logger.debug("identity_pub lookup by username: not found username=%s", username)
+            return None
+        logger.debug("identity_pub lookup by username: user_id=%d", row[0])
+        return row[0], bytes(row[1])
+
 

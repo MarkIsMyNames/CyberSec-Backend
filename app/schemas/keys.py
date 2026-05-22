@@ -51,3 +51,8 @@ class KeyBundleResponse(BaseModel):
     one_time_prekey: str | None
     pq_prekey_pub: str
     pq_prekey_sig: str
+
+
+class UserIdentityResponse(BaseModel):
+    user_id: int
+    identity_pub: str

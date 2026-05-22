@@ -40,6 +40,7 @@ async def send_message(
     logger.info("message sent message_id=%d sender_id=%d recipient_id=%d", msg.id, current_user.id, body.recipient_id)
     return MessageResponse(
         id=msg.id,
+        sender_id=msg.sender_id,
         ciphertext=base64.b64encode(msg.ciphertext).decode(),
         ratchet_header_enc=base64.b64encode(msg.ratchet_header_enc).decode(),
         sent_at=int(msg.sent_at),
@@ -60,6 +61,7 @@ async def list_messages(
     return [
         MessageResponse(
             id=message.id,
+            sender_id=message.sender_id,
             ciphertext=base64.b64encode(message.ciphertext).decode(),
             ratchet_header_enc=base64.b64encode(message.ratchet_header_enc).decode(),
             sent_at=int(message.sent_at),

@@ -22,7 +22,6 @@ from app.logger import logger
 from app.models.user import User
 from app.repositories.user import SQLUserRepository
 from app.schemas.auth import (
-    RefreshRequest,
     RegisterRequest,
     RegisterResponse,
     SRPInitRequest,

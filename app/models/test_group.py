@@ -77,6 +77,27 @@ def test_group_deleted_when_membership_drops_to_one(session):
     assert groups.get_group(group.id) is None
 
 
+def test_get_groups_for_user(session):
+    users = SQLUserRepository(session)
+    groups = SQLGroupRepository(session)
+    alice = users.create_user("alice", "aa", "bb", b"t")
+    bob = users.create_user("bob", "aa", "bb", b"t")
+    g1 = groups.create_group("g1", creator_id=alice.id)
+    g2 = groups.create_group("g2", creator_id=alice.id)
+    groups.add_member(g1.id, alice.id, bob.id)
+    alice_groups = groups.get_groups_for_user(alice.id)
+    bob_groups = groups.get_groups_for_user(bob.id)
+    assert {g.id for g in alice_groups} == {g1.id, g2.id}
+    assert [g.id for g in bob_groups] == [g1.id]
+
+
+def test_get_groups_for_user_returns_empty_when_no_groups(session):
+    users = SQLUserRepository(session)
+    groups = SQLGroupRepository(session)
+    alice = users.create_user("alice", "aa", "bb", b"t")
+    assert groups.get_groups_for_user(alice.id) == []
+
+
 def test_store_and_fetch_skdm(session):
     users = SQLUserRepository(session)
     groups = SQLGroupRepository(session)

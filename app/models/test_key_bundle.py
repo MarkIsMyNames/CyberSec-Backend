@@ -76,6 +76,37 @@ def test_store_key_bundle_upserts_on_conflict(session):
     assert bundle.identity_pub == b"ik2" * 16
 
 
+def test_get_identity_pub_by_username(session):
+    users = SQLUserRepository(session)
+    keys = SQLKeyBundleRepository(session)
+    user = users.create_user("alice", "aa", "bb", b"totp")
+    keys.store_key_bundle(
+        user.id,
+        identity_pub=b"ik" * 16,
+        signed_prekey_pub=b"spk" * 16,
+        signed_prekey_sig=b"sig" * 32,
+        pq_prekey_pub=b"pq" * 592,
+        pq_prekey_sig=b"pqs" * 32,
+    )
+    result = keys.get_identity_pub_by_username("alice")
+    assert result is not None
+    user_id, identity_pub = result
+    assert user_id == user.id
+    assert identity_pub == b"ik" * 16
+
+
+def test_get_identity_pub_by_username_returns_none_when_no_bundle(session):
+    users = SQLUserRepository(session)
+    keys = SQLKeyBundleRepository(session)
+    users.create_user("alice", "aa", "bb", b"totp")
+    assert keys.get_identity_pub_by_username("alice") is None
+
+
+def test_get_identity_pub_by_username_returns_none_for_unknown_user(session):
+    keys = SQLKeyBundleRepository(session)
+    assert keys.get_identity_pub_by_username("nobody") is None
+
+
 def test_count_returns_zero_when_no_prekeys(session):
     users = SQLUserRepository(session)
     keys = SQLKeyBundleRepository(session)

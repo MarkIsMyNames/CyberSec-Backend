@@ -45,3 +45,7 @@ class GroupResponse(BaseModel):
 
 class SKDMResponse(BaseModel):
     skdm_ciphertexts: list[str]
+
+
+class GroupListResponse(BaseModel):
+    groups: list[GroupResponse]

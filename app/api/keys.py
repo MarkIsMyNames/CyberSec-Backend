@@ -1,7 +1,7 @@
 import base64
 from http import HTTPStatus
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 
 from app.api.deps import get_current_user
 from app.auth.rate_limit import IP_KEYS_LIMIT, KEYS_LIMIT, ip_limiter, limiter
@@ -10,7 +10,7 @@ from app.models.user import User
 from app.logger import logger
 from app.repositories.key_bundle import SQLKeyBundleRepository
 from app.repositories.user import SQLUserRepository
-from app.schemas.keys import KeyBundleResponse, KeyBundleUpload, OneTimePreKeyCountResponse, UploadOneTimePreKeysRequest
+from app.schemas.keys import KeyBundleResponse, KeyBundleUpload, OneTimePreKeyCountResponse, UploadOneTimePreKeysRequest, UserIdentityResponse
 
 router = APIRouter()
 
@@ -70,6 +70,23 @@ async def get_prekey_count(
     count = kb_repo.count_one_time_prekeys(current_user.id)
     logger.debug("prekey count user_id=%d count=%d", current_user.id, count)
     return OneTimePreKeyCountResponse(count=count)
+
+
+@router.get("/lookup/by-username", response_model=UserIdentityResponse, dependencies=[Depends(get_current_user)])
+@limiter.limit(KEYS_LIMIT)
+@ip_limiter.limit(IP_KEYS_LIMIT)
+async def lookup_identity_pub_by_username(
+    request: Request,
+    username: str = Query(),
+    kb_repo: SQLKeyBundleRepository = Depends(repo_dep(SQLKeyBundleRepository)),
+) -> UserIdentityResponse:
+    result = kb_repo.get_identity_pub_by_username(username)
+    if result is None:
+        logger.warning("identity_pub lookup by username: not found username=%s", username)
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="User not found")
+    user_id, identity_pub_bytes = result
+    logger.debug("identity_pub lookup by username: user_id=%d", user_id)
+    return UserIdentityResponse(user_id=user_id, identity_pub=base64.b64encode(identity_pub_bytes).decode())
 
 
 @router.get("/{user_id}", response_model=KeyBundleResponse, dependencies=[Depends(get_current_user)])

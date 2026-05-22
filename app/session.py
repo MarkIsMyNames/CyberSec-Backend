@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from threading import Lock
 
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
@@ -10,6 +11,9 @@ from sqlcipher3.dbapi2 import Connection
 
 from app.config import config
 from app.logger import logger
+
+engine: Engine | None = None
+engine_lock: Lock = Lock()
 
 
 def _derive_db_key() -> str:
@@ -29,13 +33,26 @@ def _make_engine() -> Engine:
     logger.debug("creating SQLCipher engine path=%s", db_path)
 
     def creator() -> Connection:
-        conn = sqlcipher.connect(db_path, check_same_thread=False)
-        conn.execute(
-            "PRAGMA key = \"x'%s'\"" % key
-        )  # unlock SQLCipher AES-256-CBC encryption; must be first query
-        conn.execute(
-            "PRAGMA foreign_keys = ON"
-        )  # SQLite disables FK enforcement by default; must re-enable per connection
+        conn = sqlcipher.connect(str(db_path), check_same_thread=False)
+        conn.execute("PRAGMA key = \"x'%s'\"" % key)    # must be first — unlocks the encrypted database
+        conn.execute("PRAGMA foreign_keys = ON")        # enforce FK constraints (SQLite disables them by default)
+        conn.execute("PRAGMA journal_mode = WAL")       # readers don't block writers; writers don't block readers
+        conn.execute("PRAGMA busy_timeout = 5000")      # retry writes for up to 5s before raising SQLITE_BUSY
+        conn.execute("PRAGMA synchronous = NORMAL")     # fsync on WAL checkpoints only — safe with WAL, faster than FULL
+        conn.execute("PRAGMA cache_size = -64000")      # 64 MB page cache per connection (negative = kibibytes)
         return conn
 
     return create_engine(cfg["db_url"], creator=creator, poolclass=NullPool)
+
+
+def get_engine() -> Engine:
+    global engine
+    if engine is None:
+        candidate = _make_engine()
+        with engine_lock:
+            if engine is None:
+                engine = candidate
+            else:
+                candidate.dispose()
+    assert engine is not None
+    return engine

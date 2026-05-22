@@ -5,14 +5,14 @@ from typing import TypeVar
 from fastapi import Depends
 from sqlalchemy.orm import Session
 
-from app.session import _make_engine
+from app.session import get_engine
 
 T = TypeVar("T")
 
 
 @contextmanager
 def open_session() -> Generator[Session, None, None]:
-    with Session(_make_engine(), expire_on_commit=False) as session:
+    with Session(get_engine(), expire_on_commit=False) as session:
         yield session
 
 

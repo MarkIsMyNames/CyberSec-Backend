@@ -29,3 +29,17 @@ def test_get_nonexistent_user_returns_none(session):
     repo = SQLUserRepository(session)
     assert repo.get_user_by_username("nobody") is None
     assert repo.get_user_by_id(9999) is None
+
+
+def test_block_and_check_refresh_token(session):
+    repo = SQLUserRepository(session)
+    jti_hash = b"deadbeef" * 4
+    assert repo.is_refresh_token_blocked(jti_hash) is False
+    repo.block_refresh_token(jti_hash, expires_at=9999999999)
+    assert repo.is_refresh_token_blocked(jti_hash) is True
+
+
+def test_different_jti_hashes_are_independent(session):
+    repo = SQLUserRepository(session)
+    repo.block_refresh_token(b"hash_a" * 4, expires_at=9999999999)
+    assert repo.is_refresh_token_blocked(b"hash_b" * 4) is False

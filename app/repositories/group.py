@@ -191,7 +191,7 @@ class SQLGroupRepository:
         logger.info("group message revoked message_id=%d sender_id=%d", message_id, sender_id)
         return True
 
-    def record_group_receipt(self, message_id: int, user_id: int) -> bool:
+    def record_group_receipt(self, message_id: int, user_id: int) -> None:
         receipt: GroupMessageReceipt | None = self._session.scalar(
             select(GroupMessageReceipt).where(
                 GroupMessageReceipt.message_id == message_id,
@@ -223,4 +223,3 @@ class SQLGroupRepository:
                 remaining,
             )
         self._session.commit()
-        return remaining == 0

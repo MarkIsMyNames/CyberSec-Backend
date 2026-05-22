@@ -1,4 +1,4 @@
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.dialects.sqlite import insert
 from sqlalchemy.orm import Session
 
@@ -61,16 +61,25 @@ class SQLKeyBundleRepository:
         logger.info("added %d one-time prekeys user_id=%d", len(prekeys), user_id)
 
     def pop_one_time_prekey(self, user_id: int) -> bytes | None:
-        key: OneTimePreKey | None = self._session.scalars(
-            select(OneTimePreKey).where(OneTimePreKey.user_id == user_id).order_by(OneTimePreKey.id).limit(1)
-        ).first()
-        if key is None:
+        value = self._session.scalar(
+            delete(OneTimePreKey)
+            .where(
+                OneTimePreKey.id == (
+                    select(OneTimePreKey.id)
+                    .where(OneTimePreKey.user_id == user_id)
+                    .order_by(OneTimePreKey.id)
+                    .limit(1)
+                    .scalar_subquery()
+                )
+            )
+            .returning(OneTimePreKey.prekey_pub)
+        )
+        self._session.commit()
+        if value is None:
             logger.warning("no one-time prekeys available user_id=%d", user_id)
             return None
-        self._session.delete(key)
-        self._session.commit()
         logger.debug("popped one-time prekey user_id=%d", user_id)
-        return bytes(key.prekey_pub)
+        return bytes(value)
 
     def count_one_time_prekeys(self, user_id: int) -> int:
         count = self._session.scalar(

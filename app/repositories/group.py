@@ -66,8 +66,18 @@ class SQLGroupRepository:
         )
         if member:
             self._session.delete(member)
+            self._session.flush()
+            remaining = self._session.scalar(
+                select(func.count()).select_from(GroupMember).where(GroupMember.group_id == group_id)
+            ) or 0
+            if remaining <= 1:
+                group = self._session.scalar(select(Group).where(Group.id == group_id))
+                if group:
+                    self._session.delete(group)
+                    logger.info("group deleted — only one member remaining group_id=%d", group_id)
+            else:
+                logger.info("removed member group_id=%d user_id=%d remaining=%d", group_id, user_id, remaining)
             self._session.commit()
-            logger.info("removed member group_id=%d user_id=%d", group_id, user_id)
 
     def get_members(self, group_id: int) -> list[int]:
         rows = list(self._session.scalars(
@@ -108,6 +118,9 @@ class SQLGroupRepository:
     def store_group_message(
         self, group_id: int, sender_id: int, ciphertext: bytes
     ) -> GroupMessage:
+        members = list(self._session.scalars(
+            select(GroupMember).where(GroupMember.group_id == group_id)
+        ))
         msg = GroupMessage(
             group_id=group_id,
             sender_id=sender_id,
@@ -115,9 +128,6 @@ class SQLGroupRepository:
         )
         self._session.add(msg)
         self._session.flush()
-        members = list(self._session.scalars(
-            select(GroupMember).where(GroupMember.group_id == group_id)
-        ))
         self._session.add_all(
             GroupMessageReceipt(message_id=msg.id, user_id=m.user_id) for m in members
         )

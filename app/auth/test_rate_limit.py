@@ -58,7 +58,7 @@ def test_limit_strings_match_config():
     assert IP_GROUP_LIMIT == cfg["ip_groups"]
 
 
-def test_rate_limit_key_uses_user_id_for_bearer_token():
+def test_rate_limit_key_uses_user_id_for_bearer_token(test_env):
     token = _make_token("42")
     key = _rate_limit_key(_make_request(token=token))
     assert key == "user:42"

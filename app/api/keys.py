@@ -110,7 +110,6 @@ async def fetch_bundle(
     opk = kb_repo.pop_one_time_prekey(user_id)
     logger.debug("fetch bundle user_id=%d opk_available=%s", user_id, opk is not None)
     return KeyBundleResponse(
-        user_id=user_id,
         identity_pub=base64.b64encode(bundle.identity_pub).decode(),
         signed_prekey_pub=base64.b64encode(bundle.signed_prekey_pub).decode(),
         signed_prekey_sig=base64.b64encode(bundle.signed_prekey_sig).decode(),

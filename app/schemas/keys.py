@@ -44,7 +44,6 @@ class OneTimePreKeyCountResponse(BaseModel):
 
 
 class KeyBundleResponse(BaseModel):
-    user_id: int
     identity_pub: str
     signed_prekey_pub: str
     signed_prekey_sig: str

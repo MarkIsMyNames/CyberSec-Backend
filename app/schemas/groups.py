@@ -22,7 +22,6 @@ class CreateGroupRequest(BaseModel):
 
 class CreateGroupResponse(BaseModel):
     id: int
-    name: str
 
 
 class AddMemberRequest(BaseModel):

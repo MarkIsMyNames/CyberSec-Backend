@@ -309,14 +309,14 @@ def test_pop_skdms_is_consume_on_read(session):
     assert groups.pop_skdms_for_user(bob.id, group.id) == []
 
 
-def test_remove_nonmember_raises_value_error(session):
+def test_remove_nonmember_is_noop(session):
     users = SQLUserRepository(session)
     groups = SQLGroupRepository(session)
     alice = users.create_user("alice", "aa", "bb", b"t")
     dave = users.create_user("dave", "aa", "bb", b"t")
     group = groups.create_group("g", creator_id=alice.id)
-    with pytest.raises(ValueError):
-        groups.remove_member(group.id, alice.id, dave.id)
+    groups.remove_member(group.id, alice.id, dave.id)
+    assert groups.get_group(group.id) is not None
 
 
 def test_group_created_with_epoch_zero(session):
@@ -333,6 +333,38 @@ def test_store_skdms_raises_for_nonexistent_group(session):
     alice = users.create_user("alice", "aa", "bb", b"t")
     with pytest.raises(ValueError):
         groups.store_skdms(9999, {alice.id: b"sk"})
+
+
+def test_record_group_receipt_noop_for_nonrecipient(session):
+    users = SQLUserRepository(session)
+    groups = SQLGroupRepository(session)
+    alice = users.create_user("alice", "aa", "bb", b"t")
+    bob = users.create_user("bob", "aa", "bb", b"t")
+    dave = users.create_user("dave", "aa", "bb", b"t")
+    group = groups.create_group("g", creator_id=alice.id)
+    groups.add_member(group.id, alice.id, bob.id)
+    msg = groups.store_group_message(group.id, alice.id, 0, b"\1")
+    # dave is not a recipient — calling record_group_receipt should not crash
+    groups.record_group_receipt(msg.id, dave.id)
+    # message must still be present because bob has not acknowledged
+    assert len(groups.get_group_messages(group.id)) == 1
+
+
+def test_store_group_message_receipt_list_is_atomic(session):
+    users = SQLUserRepository(session)
+    groups = SQLGroupRepository(session)
+    alice = users.create_user("alice", "aa", "bb", b"t")
+    bob = users.create_user("bob", "aa", "bb", b"t")
+    carol = users.create_user("carol", "aa", "bb", b"t")
+    group = groups.create_group("g", creator_id=alice.id)
+    groups.add_member(group.id, alice.id, bob.id)
+    groups.add_member(group.id, alice.id, carol.id)
+    msg = groups.store_group_message(group.id, alice.id, 0, b"\1")
+    # Exactly bob and carol receive a receipt; alice (sender) must not
+    groups.record_group_receipt(msg.id, bob.id)
+    assert len(groups.get_group_messages(group.id)) == 1  # carol hasn't acked
+    groups.record_group_receipt(msg.id, carol.id)
+    assert groups.get_group_messages(group.id) == []  # all acked — deleted
 
 
 def test_pop_skdms_discards_stale_epochs(session):

@@ -10,13 +10,13 @@ from app.dependencies import repo_dep
 from app.logger import logger
 from app.models.user import User
 from app.repositories.message import SQLMessageRepository
-from app.schemas.messages import MessageResponse, SendMessageRequest
+from app.schemas.messages import MessageResponse, SendMessageRequest, SendMessageResponse
 
 
 router = APIRouter()
 
 
-@router.post("/", response_model=MessageResponse, status_code=HTTPStatus.CREATED)
+@router.post("/", response_model=SendMessageResponse, status_code=HTTPStatus.CREATED)
 @limiter.limit(MESSAGES_LIMIT)
 @ip_limiter.limit(IP_MESSAGES_LIMIT)
 async def send_message(
@@ -24,9 +24,9 @@ async def send_message(
     body: SendMessageRequest,
     current_user: User = Depends(get_current_user),
     msg_repo: SQLMessageRepository = Depends(repo_dep(SQLMessageRepository)),
-) -> MessageResponse:
+) -> SendMessageResponse:
     try:
-        msg = msg_repo.store_message(
+        msg_id = msg_repo.store_message(
             sender_id=current_user.id,
             recipient_id=body.recipient_id,
             ciphertext=body.ciphertext_bytes(),
@@ -37,13 +37,8 @@ async def send_message(
         raise HTTPException(
             status_code=HTTPStatus.TOO_MANY_REQUESTS, detail="Recipient inbox is full"
         )
-    logger.info("message sent message_id=%d sender_id=%d recipient_id=%d", msg.id, current_user.id, body.recipient_id)
-    return MessageResponse(
-        id=msg.id,
-        sender_id=msg.sender_id,
-        ciphertext=base64.b64encode(msg.ciphertext).decode(),
-        ratchet_header_enc=base64.b64encode(msg.ratchet_header_enc).decode(),
-    )
+    logger.info("message sent message_id=%d sender_id=%d recipient_id=%d", msg_id, current_user.id, body.recipient_id)
+    return SendMessageResponse(id=msg_id)
 
 
 @router.get("/", response_model=list[MessageResponse])
@@ -77,7 +72,7 @@ async def mark_receipt(
     current_user: User = Depends(get_current_user),
     msg_repo: SQLMessageRepository = Depends(repo_dep(SQLMessageRepository)),
 ) -> Response:
-    if not msg_repo.record_receipt(message_id, current_user.id):
+    if not msg_repo.delete_message(message_id, "recipient_id", current_user.id):
         logger.warning(
             "receipt failed: message not found message_id=%d user_id=%d",
             message_id,
@@ -99,7 +94,7 @@ async def revoke(
     current_user: User = Depends(get_current_user),
     msg_repo: SQLMessageRepository = Depends(repo_dep(SQLMessageRepository)),
 ) -> Response:
-    if not msg_repo.revoke_message(message_id, current_user.id):
+    if not msg_repo.delete_message(message_id, "sender_id", current_user.id):
         logger.warning("revoke failed: not sender or not found message_id=%d user_id=%d", message_id, current_user.id)
         raise HTTPException(
             status_code=HTTPStatus.FORBIDDEN, detail="Cannot revoke this message"

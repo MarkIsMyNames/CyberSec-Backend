@@ -1,5 +1,7 @@
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, exists, func, literal, select, update
 from sqlalchemy.dialects.sqlite import insert
+import sqlcipher3.dbapi2
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.logger import logger
@@ -35,8 +37,9 @@ class SQLGroupRepository:
         return group
 
     def is_creator(self, group_id: int, user_id: int) -> bool:
-        group: Group | None = self._session.scalar(select(Group).where(Group.id == group_id))
-        return group is not None and group.creator_id == user_id
+        return self._session.scalar(
+            select(Group.creator_id).where(Group.id == group_id)
+        ) == user_id
 
     def add_member(self, group_id: int, requester_id: int, user_id: int) -> None:
         if not self.is_creator(group_id, requester_id):
@@ -65,19 +68,19 @@ class SQLGroupRepository:
             )
             raise PermissionError("only the group creator can remove other members")
 
-        member: GroupMember | None = self._session.scalar(
-            select(GroupMember).where(GroupMember.group_id == group_id, GroupMember.user_id == user_id)
+        # Lock the group row
+        self._session.execute(
+            select(Group).where(Group.id == group_id).with_for_update()
         )
-        if member is None:
-            logger.warning(
-                "remove_member target not in group group_id=%d requester_id=%d target_id=%d",
-                group_id,
-                requester_id,
-                user_id,
-            )
-            raise ValueError("user is not a member of this group")
 
-        self._session.delete(member)
+        deleted = self._session.execute(
+            delete(GroupMember).where(
+                GroupMember.group_id == group_id, GroupMember.user_id == user_id
+            )
+        ).rowcount
+        if deleted == 0:
+            logger.debug("remove_member no-op: user not in group group_id=%d user_id=%d", group_id, user_id)
+            return
         self._session.flush()
         remaining = self._session.scalar(
             select(func.count()).select_from(GroupMember).where(GroupMember.group_id == group_id)
@@ -167,44 +170,42 @@ class SQLGroupRepository:
     def store_skdms(
         self, group_id: int, skdm_ciphertexts: dict[int, bytes]
     ) -> None:
-        group: Group | None = self._session.scalar(select(Group).where(Group.id == group_id))
-        if group is None:
+        epoch: int | None = self._session.scalar(select(Group.epoch).where(Group.id == group_id))
+        if epoch is None:
+            logger.warning("store_skdms failed — group not found group_id=%d", group_id)
             raise ValueError("group %d does not exist" % group_id)
-        self._session.add_all(
-            SenderKeyDistribution(
-                group_id=group_id,
-                recipient_id=recipient_id,
-                skdm_ciphertext=ciphertext,
-                epoch=group.epoch,
+        try:
+            self._session.add_all(
+                SenderKeyDistribution(
+                    group_id=group_id,
+                    recipient_id=recipient_id,
+                    skdm_ciphertext=ciphertext,
+                    epoch=epoch,
+                )
+                for recipient_id, ciphertext in skdm_ciphertexts.items()
             )
-            for recipient_id, ciphertext in skdm_ciphertexts.items()
-        )
-        self._session.commit()
-        logger.info("stored %d SKDMs group_id=%d epoch=%d", len(skdm_ciphertexts), group_id, group.epoch)
+            self._session.commit()
+        except (IntegrityError, sqlcipher3.dbapi2.IntegrityError):
+            self._session.rollback()
+            logger.warning("store_skdms failed — group deleted mid-transaction group_id=%d", group_id)
+            raise ValueError("group %d does not exist" % group_id)
+        logger.info("stored %d SKDMs group_id=%d epoch=%d", len(skdm_ciphertexts), group_id, epoch)
 
     def pop_skdms_for_user(self, user_id: int, group_id: int) -> list[tuple[int, bytes]]:
-        rows = list(self._session.scalars(
-            select(SenderKeyDistribution)
+        rows = self._session.execute(
+            delete(SenderKeyDistribution)
             .where(SenderKeyDistribution.recipient_id == user_id, SenderKeyDistribution.group_id == group_id)
-            .order_by(SenderKeyDistribution.epoch.desc())
-        ))
-        for row in rows:
-            self._session.delete(row)
+            .returning(SenderKeyDistribution.epoch, SenderKeyDistribution.skdm_ciphertext)
+        ).all()
         self._session.commit()
         if not rows:
             return []
         logger.info("popped %d SKDMs user_id=%d group_id=%d", len(rows), user_id, group_id)
-        return [(r.epoch, r.skdm_ciphertext) for r in rows]
+        return [(r.epoch, bytes(r.skdm_ciphertext)) for r in rows]
 
     def store_group_message(
         self, group_id: int, sender_id: int, epoch: int, ciphertext: bytes
     ) -> GroupMessage:
-        recipients = list(self._session.scalars(
-            select(GroupMember).where(
-                GroupMember.group_id == group_id,
-                GroupMember.user_id != sender_id,
-            )
-        ))
         msg = GroupMessage(
             group_id=group_id,
             sender_id=sender_id,
@@ -213,17 +214,20 @@ class SQLGroupRepository:
         )
         self._session.add(msg)
         self._session.flush()
-        self._session.add_all(
-            GroupMessageReceipt(message_id=msg.id, user_id=r.user_id) for r in recipients
+        self._session.execute(
+            insert(GroupMessageReceipt).from_select(
+                ["message_id", "user_id"],
+                select(literal(msg.id), GroupMember.user_id)
+                .where(GroupMember.group_id == group_id, GroupMember.user_id != sender_id),
+            )
         )
         self._session.commit()
         self._session.refresh(msg)
         logger.info(
-            "stored group message id=%d group_id=%d sender_id=%d recipients=%d",
+            "stored group message id=%d group_id=%d sender_id=%d",
             msg.id,
             group_id,
             sender_id,
-            len(recipients),
         )
         return msg
 
@@ -235,53 +239,31 @@ class SQLGroupRepository:
         return messages
 
     def revoke_group_message(self, message_id: int, sender_id: int) -> bool:
-        msg: GroupMessage | None = self._session.scalar(select(GroupMessage).where(GroupMessage.id == message_id))
-        if msg is None:
-            logger.warning("group message revoke failed — not found message_id=%d", message_id)
+        deleted = self._session.execute(
+            delete(GroupMessage).where(GroupMessage.id == message_id, GroupMessage.sender_id == sender_id)
+        ).rowcount
+        if deleted == 0:
+            logger.warning("group message revoke failed message_id=%d requester_id=%d", message_id, sender_id)
             return False
-        if msg.sender_id != sender_id:
-            logger.warning(
-                "group message revoke failed — not sender message_id=%d sender_id=%d requester_id=%d",
-                message_id,
-                msg.sender_id,
-                sender_id,
-            )
-            return False
-        self._session.delete(msg)
         self._session.commit()
         logger.info("group message revoked message_id=%d sender_id=%d", message_id, sender_id)
         return True
 
     def record_group_receipt(self, message_id: int, user_id: int) -> None:
-        receipt: GroupMessageReceipt | None = self._session.scalar(
-            select(GroupMessageReceipt).where(
+        self._session.execute(
+            delete(GroupMessageReceipt).where(
                 GroupMessageReceipt.message_id == message_id,
                 GroupMessageReceipt.user_id == user_id,
             )
         )
-        if receipt:
-            self._session.delete(receipt)
-            self._session.flush()
-        remaining: int = (
-            self._session.scalar(
-                select(func.count()).where(GroupMessageReceipt.message_id == message_id)
+        self._session.execute(
+            delete(GroupMessage).where(
+                GroupMessage.id == message_id,
+                ~exists(
+                    select(GroupMessageReceipt.message_id)
+                    .where(GroupMessageReceipt.message_id == message_id)
+                ),
             )
-            or 0
         )
-        if remaining == 0:
-            msg: GroupMessage | None = self._session.scalar(select(GroupMessage).where(GroupMessage.id == message_id))
-            if msg:
-                self._session.delete(msg)
-            logger.info(
-                "group message deleted — all receipts acknowledged message_id=%d last_user_id=%d",
-                message_id,
-                user_id,
-            )
-        else:
-            logger.debug(
-                "group receipt recorded message_id=%d user_id=%d remaining=%d",
-                message_id,
-                user_id,
-                remaining,
-            )
         self._session.commit()
+        logger.debug("group receipt recorded message_id=%d user_id=%d", message_id, user_id)

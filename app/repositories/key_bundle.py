@@ -60,25 +60,19 @@ class SQLKeyBundleRepository:
         logger.info("added %d one-time prekeys user_id=%d", len(prekeys), user_id)
 
     def pop_one_time_prekey(self, user_id: int) -> bytes | None:
-        value = self._session.scalar(
+        prekey_pub = self._session.execute(
             delete(OneTimePreKey)
             .where(
-                OneTimePreKey.id == (
-                    select(OneTimePreKey.id)
-                    .where(OneTimePreKey.user_id == user_id)
-                    .order_by(OneTimePreKey.id)
-                    .limit(1)
-                    .scalar_subquery()
-                )
+                OneTimePreKey.id == select(OneTimePreKey.id)
+                .where(OneTimePreKey.user_id == user_id)
+                .order_by(OneTimePreKey.id)
+                .limit(1)
+                .scalar_subquery()
             )
             .returning(OneTimePreKey.prekey_pub)
-        )
+        ).scalar()
         self._session.commit()
-        if value is None:
-            logger.warning("no one-time prekeys available user_id=%d", user_id)
-            return None
-        logger.debug("popped one-time prekey user_id=%d", user_id)
-        return bytes(value)
+        return bytes(prekey_pub) if prekey_pub is not None else None
 
     def count_one_time_prekeys(self, user_id: int) -> int:
         count = self._session.scalar(

@@ -1,6 +1,6 @@
-from typing import Literal, cast
+from typing import Literal
 
-from sqlalchemy import Table, delete, func, insert, literal, select
+from sqlalchemy import delete, func, insert, literal, select
 from sqlalchemy.orm import Session
 
 from app.config import config
@@ -21,7 +21,7 @@ class SQLMessageRepository:
     ) -> int:
         max_msgs: int = config["messaging"]["inbox_max_messages"]
         msg_id = self._session.execute(
-            insert(cast(Table, Message.__table__))
+            insert(Message)
             .from_select(
                 ["sender_id", "recipient_id", "ciphertext", "ratchet_header_enc"],
                 select(literal(sender_id), literal(recipient_id), literal(ciphertext), literal(ratchet_header_enc))

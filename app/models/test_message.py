@@ -73,3 +73,29 @@ def test_record_receipt_returns_false_for_missing_message(session):
     msgs = SQLMessageRepository(session)
     bob = users.create_user("bob", "aa", "bb", b"totp")
     assert msgs.delete_message(9999, "recipient_id", bob) is False
+
+
+def test_store_message_raises_on_inbox_overflow(session, monkeypatch):
+    import pytest
+    from app.config import config
+    monkeypatch.setitem(config["messaging"], "inbox_max_messages", 3)
+    users = SQLUserRepository(session)
+    msgs = SQLMessageRepository(session)
+    alice = users.create_user("alice", "aa", "bb", b"totp")
+    bob = users.create_user("bob", "cc", "dd", b"totp")
+    for _ in range(3):
+        msgs.store_message(alice, bob, b"ct", b"hdr")
+    with pytest.raises(OverflowError):
+        msgs.store_message(alice, bob, b"ct", b"hdr")
+
+
+def test_pagination_returns_messages_in_order(session):
+    users = SQLUserRepository(session)
+    msgs = SQLMessageRepository(session)
+    alice = users.create_user("alice", "aa", "bb", b"totp")
+    bob = users.create_user("bob", "cc", "dd", b"totp")
+    ids = [msgs.store_message(alice, bob, b"ct%d" % i, b"hdr") for i in range(5)]
+    page1 = [m.id for m in msgs.get_messages_for_user(bob, limit=3, offset=0)]
+    page2 = [m.id for m in msgs.get_messages_for_user(bob, limit=3, offset=3)]
+    assert page1 == ids[:3]
+    assert page2 == ids[3:]

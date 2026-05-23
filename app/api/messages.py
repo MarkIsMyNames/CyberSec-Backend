@@ -25,6 +25,8 @@ async def send_message(
     current_user: User = Depends(get_current_user),
     msg_repo: SQLMessageRepository = Depends(repo_dep(SQLMessageRepository)),
 ) -> SendMessageResponse:
+    if body.recipient_id == current_user.id:
+        raise HTTPException(status_code=HTTPStatus.FORBIDDEN, detail="Cannot send a message to yourself")
     try:
         msg_id = msg_repo.store_message(
             sender_id=current_user.id,

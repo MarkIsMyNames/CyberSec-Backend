@@ -131,3 +131,42 @@ def test_lookup_identity_pub_unknown_username_returns_404(client, session):
         headers={"Authorization": "Bearer %s" % tok},
     )
     assert resp.status_code == HTTPStatus.NOT_FOUND
+
+
+def test_fetch_bundle_no_one_time_prekey_returns_null(client, session):
+    alice, alice_tok, _ = auth_helper(client, session, "alice")
+    bundle = _make_bundle()
+    bundle["one_time_prekeys"] = []
+    client.post("/api/v1/keys/bundle", json=bundle, headers={"Authorization": "Bearer %s" % alice_tok})
+    _, bob_tok, _ = auth_helper(client, session, "bob")
+    resp = client.get("/api/v1/keys/%d" % alice.id, headers={"Authorization": "Bearer %s" % bob_tok})
+    assert resp.status_code == HTTPStatus.OK
+    assert resp.json()["one_time_prekey"] is None
+
+
+def test_publish_bundle_twice_upserts(client, session):
+    alice, alice_tok, _ = auth_helper(client, session, "alice")
+    bundle1 = _make_bundle()
+    bundle2 = _make_bundle()
+    bundle2["identity_pub"] = base64.b64encode(b"x" * 32).decode()
+    client.post("/api/v1/keys/bundle", json=bundle1, headers={"Authorization": "Bearer %s" % alice_tok})
+    client.post("/api/v1/keys/bundle", json=bundle2, headers={"Authorization": "Bearer %s" % alice_tok})
+    _, bob_tok, _ = auth_helper(client, session, "bob")
+    resp = client.get("/api/v1/keys/%d" % alice.id, headers={"Authorization": "Bearer %s" % bob_tok})
+    assert resp.json()["identity_pub"] == bundle2["identity_pub"]
+
+
+def test_fetch_user_with_no_bundle_returns_404(client, session):
+    alice, alice_tok, _ = auth_helper(client, session, "alice")
+    _, bob_tok, _ = auth_helper(client, session, "bob")
+    resp = client.get("/api/v1/keys/%d" % alice.id, headers={"Authorization": "Bearer %s" % bob_tok})
+    assert resp.status_code == HTTPStatus.NOT_FOUND
+
+
+def test_prekey_count_zero_when_exhausted(client, session):
+    alice, alice_tok, _ = auth_helper(client, session, "alice")
+    bundle = _make_bundle()
+    bundle["one_time_prekeys"] = []
+    client.post("/api/v1/keys/bundle", json=bundle, headers={"Authorization": "Bearer %s" % alice_tok})
+    resp = client.get("/api/v1/keys/prekeys/count", headers={"Authorization": "Bearer %s" % alice_tok})
+    assert resp.json()["count"] == 0

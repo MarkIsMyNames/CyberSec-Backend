@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import insert, select
 from sqlalchemy.orm import Session
 
 from app.logger import logger
@@ -11,18 +11,15 @@ class SQLUserRepository:
 
     def create_user(
         self, username: str, srp_salt: str, srp_verifier: str, totp_secret_enc: bytes
-    ) -> User:
-        user = User(
-            username=username,
-            srp_salt=srp_salt,
-            srp_verifier=srp_verifier,
-            totp_secret_enc=totp_secret_enc,
-        )
-        self._session.add(user)
+    ) -> int:
+        user_id: int = self._session.execute(
+            insert(User)
+            .values(username=username, srp_salt=srp_salt, srp_verifier=srp_verifier, totp_secret_enc=totp_secret_enc)
+            .returning(User.id)
+        ).scalar_one()
         self._session.commit()
-        self._session.refresh(user)
-        logger.info("created user id=%d username=%s", user.id, username)
-        return user
+        logger.info("created user id=%d username=%s", user_id, username)
+        return user_id
 
     def get_user_by_username(self, username: str) -> User | None:
         user = self._session.scalar(select(User).where(User.username == username))

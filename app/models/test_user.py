@@ -5,15 +5,14 @@ from app.repositories.user import SQLUserRepository
 
 def test_create_and_fetch_user(session):
     repo = SQLUserRepository(session)
-    user = repo.create_user("alice", "aa", "bb", b"enc_totp")
-    assert user.id is not None
-    assert user.username == "alice"
+    user_id = repo.create_user("alice", "aa", "bb", b"enc_totp")
+    assert user_id is not None
 
     fetched = repo.get_user_by_username("alice")
     assert fetched is not None
-    assert fetched.id == user.id
+    assert fetched.id == user_id
 
-    by_id = repo.get_user_by_id(user.id)
+    by_id = repo.get_user_by_id(user_id)
     assert by_id is not None
     assert by_id.username == "alice"
 

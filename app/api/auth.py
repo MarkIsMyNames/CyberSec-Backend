@@ -59,10 +59,10 @@ async def register(
         raise HTTPException(status_code=HTTPStatus.CONFLICT, detail="Username taken")
     totp_secret = generate_totp_secret()
     totp_enc = encrypt_totp_secret(totp_secret)
-    user = repo.create_user(body.username, body.srp_salt, body.srp_verifier, totp_enc)
+    user_id = repo.create_user(body.username, body.srp_salt, body.srp_verifier, totp_enc)
     uri = get_provisioning_uri(totp_secret, body.username)
-    logger.info("register success username=%s user_id=%d", body.username, user.id)
-    return RegisterResponse(user_id=user.id, totp_provisioning_uri=uri)
+    logger.info("register success username=%s user_id=%d", body.username, user_id)
+    return RegisterResponse(user_id=user_id, totp_provisioning_uri=uri)
 
 
 @router.post("/srp-init", response_model=SRPInitResponse)

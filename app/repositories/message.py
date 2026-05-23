@@ -23,7 +23,7 @@ class SQLMessageRepository:
         msg_id = self._session.execute(
             insert(Message)
             .from_select(
-                ["sender_id", "recipient_id", "ciphertext", "ratchet_header_enc"],
+                [Message.sender_id, Message.recipient_id, Message.ciphertext, Message.ratchet_header_enc],
                 select(literal(sender_id), literal(recipient_id), literal(ciphertext), literal(ratchet_header_enc))
                 .where(
                     select(func.count()).select_from(Message).where(Message.recipient_id == recipient_id).scalar_subquery()

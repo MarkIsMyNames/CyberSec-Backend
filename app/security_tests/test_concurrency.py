@@ -36,7 +36,7 @@ def concurrent_db(monkeypatch):
 
 def test_concurrent_pop_one_time_prekey_no_duplicate(concurrent_db):
     with Session(concurrent_db, expire_on_commit=False) as setup_sess:
-        alice = SQLUserRepository(setup_sess).create_user("alice", "s", "v", b"t")
+        alice = SQLUserRepository(setup_sess).create_user("alice", "s", b"v", b"t")
         SQLKeyBundleRepository(setup_sess).add_one_time_prekeys(
             alice, [b"unique_key_material"]
         )
@@ -65,8 +65,8 @@ def test_concurrent_pop_one_time_prekey_no_duplicate(concurrent_db):
 def test_concurrent_add_member_no_duplicate(concurrent_db):
     with Session(concurrent_db, expire_on_commit=False) as setup_sess:
         users = SQLUserRepository(setup_sess)
-        alice = users.create_user("alice2", "s", "v", b"t")
-        bob = users.create_user("bob2", "s", "v", b"t")
+        alice = users.create_user("alice2", "s", b"v", b"t")
+        bob = users.create_user("bob2", "s", b"v", b"t")
         group = SQLGroupRepository(setup_sess).create_group("g", creator_id=alice)
 
     barrier = threading.Barrier(5)
@@ -96,10 +96,10 @@ def test_concurrent_add_member_no_duplicate(concurrent_db):
 def test_concurrent_remove_member_epoch_increments_correctly(concurrent_db):
     with Session(concurrent_db, expire_on_commit=False) as setup_sess:
         users = SQLUserRepository(setup_sess)
-        alice = users.create_user("alice3", "s", "v", b"t")
-        bob = users.create_user("bob3", "s", "v", b"t")
-        carol = users.create_user("carol3", "s", "v", b"t")
-        dave = users.create_user("dave3", "s", "v", b"t")
+        alice = users.create_user("alice3", "s", b"v", b"t")
+        bob = users.create_user("bob3", "s", b"v", b"t")
+        carol = users.create_user("carol3", "s", b"v", b"t")
+        dave = users.create_user("dave3", "s", b"v", b"t")
         repo = SQLGroupRepository(setup_sess)
         group = repo.create_group("g", creator_id=alice)
         repo.add_member(group.id, alice, bob, b"skdm")
@@ -133,8 +133,8 @@ def test_concurrent_store_message_respects_inbox_limit(concurrent_db, monkeypatc
 
     with Session(concurrent_db, expire_on_commit=False) as setup_sess:
         users = SQLUserRepository(setup_sess)
-        sender = users.create_user("sender_c", "s", "v", b"t")
-        recipient = users.create_user("recipient_c", "s", "v", b"t")
+        sender = users.create_user("sender_c", "s", b"v", b"t")
+        recipient = users.create_user("recipient_c", "s", b"v", b"t")
         repo = SQLMessageRepository(setup_sess)
         for _ in range(max_msgs - 1):
             repo.store_message(sender, recipient, b"ct", b"hdr")
@@ -178,10 +178,10 @@ def test_concurrent_store_message_respects_inbox_limit(concurrent_db, monkeypatc
 def test_concurrent_remove_member_no_deadlock(concurrent_db):
     with Session(concurrent_db, expire_on_commit=False) as setup_sess:
         users = SQLUserRepository(setup_sess)
-        alice = users.create_user("alice_nd1", "s", "v", b"t")
-        bob = users.create_user("bob_nd1", "s", "v", b"t")
-        carol = users.create_user("carol_nd1", "s", "v", b"t")
-        dave = users.create_user("dave_nd1", "s", "v", b"t")
+        alice = users.create_user("alice_nd1", "s", b"v", b"t")
+        bob = users.create_user("bob_nd1", "s", b"v", b"t")
+        carol = users.create_user("carol_nd1", "s", b"v", b"t")
+        dave = users.create_user("dave_nd1", "s", b"v", b"t")
         repo = SQLGroupRepository(setup_sess)
         group = repo.create_group("g", creator_id=alice)
         repo.add_member(group.id, alice, bob, b"skdm")
@@ -218,9 +218,9 @@ def test_concurrent_remove_member_no_deadlock(concurrent_db):
 def test_concurrent_send_message_and_add_member_no_deadlock(concurrent_db):
     with Session(concurrent_db, expire_on_commit=False) as setup_sess:
         users = SQLUserRepository(setup_sess)
-        alice = users.create_user("alice_nd2", "s", "v", b"t")
-        bob = users.create_user("bob_nd2", "s", "v", b"t")
-        carol = users.create_user("carol_nd2", "s", "v", b"t")
+        alice = users.create_user("alice_nd2", "s", b"v", b"t")
+        bob = users.create_user("bob_nd2", "s", b"v", b"t")
+        carol = users.create_user("carol_nd2", "s", b"v", b"t")
         repo = SQLGroupRepository(setup_sess)
         group = repo.create_group("g", creator_id=alice)
         repo.add_member(group.id, alice, bob, b"skdm")
@@ -259,9 +259,9 @@ def test_concurrent_send_message_and_add_member_no_deadlock(concurrent_db):
 def test_concurrent_remove_member_same_target_no_deadlock(concurrent_db):
     with Session(concurrent_db, expire_on_commit=False) as setup_sess:
         users = SQLUserRepository(setup_sess)
-        alice = users.create_user("alice_nd3", "s", "v", b"t")
-        bob = users.create_user("bob_nd3", "s", "v", b"t")
-        carol = users.create_user("carol_nd3", "s", "v", b"t")
+        alice = users.create_user("alice_nd3", "s", b"v", b"t")
+        bob = users.create_user("bob_nd3", "s", b"v", b"t")
+        carol = users.create_user("carol_nd3", "s", b"v", b"t")
         repo = SQLGroupRepository(setup_sess)
         group = repo.create_group("g", creator_id=alice)
         repo.add_member(group.id, alice, bob, b"skdm")
@@ -307,8 +307,8 @@ def test_concurrent_remove_member_same_target_no_deadlock(concurrent_db):
 def test_concurrent_receipt_no_double_delete(concurrent_db):
     with Session(concurrent_db, expire_on_commit=False) as setup_sess:
         users = SQLUserRepository(setup_sess)
-        alice = users.create_user("alice_r1", "s", "v", b"t")
-        bob = users.create_user("bob_r1", "s", "v", b"t")
+        alice = users.create_user("alice_r1", "s", b"v", b"t")
+        bob = users.create_user("bob_r1", "s", b"v", b"t")
         msg_id = SQLMessageRepository(setup_sess).store_message(
             alice, bob, b"ct", b"hdr"
         )
@@ -346,8 +346,8 @@ def test_concurrent_receipt_no_double_delete(concurrent_db):
 def test_concurrent_group_message_revoke_idempotent(concurrent_db):
     with Session(concurrent_db, expire_on_commit=False) as setup_sess:
         users = SQLUserRepository(setup_sess)
-        alice = users.create_user("alice_gr1", "s", "v", b"t")
-        bob = users.create_user("bob_gr1", "s", "v", b"t")
+        alice = users.create_user("alice_gr1", "s", b"v", b"t")
+        bob = users.create_user("bob_gr1", "s", b"v", b"t")
         repo = SQLGroupRepository(setup_sess)
         group = repo.create_group("g", creator_id=alice)
         repo.add_member(group.id, alice, bob, b"skdm")
@@ -424,9 +424,9 @@ def test_concurrent_refresh_token_replay_only_one_succeeds(concurrent_db):
 def test_concurrent_group_receipt_message_deleted_after_all_acknowledge(concurrent_db):
     with Session(concurrent_db, expire_on_commit=False) as setup_sess:
         users = SQLUserRepository(setup_sess)
-        alice = users.create_user("alice_gcr1", "s", "v", b"t")
-        bob = users.create_user("bob_gcr1", "s", "v", b"t")
-        carol = users.create_user("carol_gcr1", "s", "v", b"t")
+        alice = users.create_user("alice_gcr1", "s", b"v", b"t")
+        bob = users.create_user("bob_gcr1", "s", b"v", b"t")
+        carol = users.create_user("carol_gcr1", "s", b"v", b"t")
         repo = SQLGroupRepository(setup_sess)
         group = repo.create_group("g", creator_id=alice)
         repo.add_member(group.id, alice, bob, b"skdm")
@@ -468,8 +468,8 @@ def test_concurrent_group_receipt_message_deleted_after_all_acknowledge(concurre
 def test_concurrent_pop_skdms_no_duplicate(concurrent_db):
     with Session(concurrent_db, expire_on_commit=False) as setup_sess:
         users = SQLUserRepository(setup_sess)
-        alice = users.create_user("alice_skdm1", "s", "v", b"t")
-        bob = users.create_user("bob_skdm1", "s", "v", b"t")
+        alice = users.create_user("alice_skdm1", "s", b"v", b"t")
+        bob = users.create_user("bob_skdm1", "s", b"v", b"t")
         repo = SQLGroupRepository(setup_sess)
         group = repo.create_group("g", creator_id=alice)
         repo.store_skdms(group.id, {bob: b"skdm_payload"})
@@ -498,9 +498,9 @@ def test_concurrent_pop_skdms_no_duplicate(concurrent_db):
 def test_concurrent_group_messages_from_different_senders(concurrent_db):
     with Session(concurrent_db, expire_on_commit=False) as setup_sess:
         users = SQLUserRepository(setup_sess)
-        alice = users.create_user("alice_gm1", "s", "v", b"t")
-        bob = users.create_user("bob_gm1", "s", "v", b"t")
-        carol = users.create_user("carol_gm1", "s", "v", b"t")
+        alice = users.create_user("alice_gm1", "s", b"v", b"t")
+        bob = users.create_user("bob_gm1", "s", b"v", b"t")
+        carol = users.create_user("carol_gm1", "s", b"v", b"t")
         repo = SQLGroupRepository(setup_sess)
         group = repo.create_group("g", creator_id=alice)
         repo.add_member(group.id, alice, bob, b"skdm")
@@ -542,7 +542,7 @@ def test_concurrent_group_messages_from_different_senders(concurrent_db):
 
 def test_concurrent_one_time_prekey_upload_no_loss(concurrent_db):
     with Session(concurrent_db, expire_on_commit=False) as setup_sess:
-        alice = SQLUserRepository(setup_sess).create_user("alice_opk1", "s", "v", b"t")
+        alice = SQLUserRepository(setup_sess).create_user("alice_opk1", "s", b"v", b"t")
 
     barrier = threading.Barrier(2)
     errors: list[Exception] = []

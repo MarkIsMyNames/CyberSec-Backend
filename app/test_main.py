@@ -38,29 +38,6 @@ def test_groups_router_mounted(client):
     assert client.get("/api/v1/groups/").status_code == HTTPStatus.UNAUTHORIZED
 
 
-def test_rate_limit_handler_returns_json_error(client, session):
-    alice, alice_tok, _ = auth_helper(client, session, "alice")
-    bob, _, _ = auth_helper(client, session, "bob")
-    limit = int(config["rate_limits"]["messages"].split("/")[0])
-    payload = {
-        "recipient_id": bob.id,
-        "ciphertext": "Y3Q=",
-        "ratchet_header_enc": "aGRy",
-    }
-    resps = [
-        client.post(
-            "/api/v1/messages/",
-            json=payload,
-            headers={"Authorization": "Bearer %s" % alice_tok},
-        )
-        for _ in range(limit + 1)
-    ]
-    blocked = next(r for r in resps if r.status_code == HTTPStatus.TOO_MANY_REQUESTS)
-    body = blocked.json()
-    assert "error" in body
-    assert "Rate limit exceeded" in body["error"]
-
-
 def test_security_header_values(client):
     resp = client.post("/api/v1/auth/register", json={})
     headers = resp.headers

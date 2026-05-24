@@ -7,13 +7,13 @@ from fastapi import Request
 
 from app.security_tests.test_helper import auth_helper
 from app.auth.rate_limit import (
-    AUTH_LIMIT,
-    GROUP_LIMIT,
-    IP_GROUP_LIMIT,
-    IP_KEYS_LIMIT,
-    IP_MESSAGES_LIMIT,
-    KEYS_LIMIT,
-    MESSAGES_LIMIT,
+    auth_limit,
+    group_limit,
+    ip_group_limit,
+    ip_keys_limit,
+    ip_messages_limit,
+    keys_limit,
+    messages_limit,
     _rate_limit_key,
     ip_limiter,
     limiter,
@@ -49,13 +49,13 @@ def test_rate_limiter_exists():
 
 def test_limit_strings_match_config():
     cfg = config["rate_limits"]
-    assert AUTH_LIMIT == cfg["auth"]
-    assert MESSAGES_LIMIT == cfg["messages"]
-    assert KEYS_LIMIT == cfg["keys"]
-    assert GROUP_LIMIT == cfg["groups"]
-    assert IP_MESSAGES_LIMIT == cfg["ip_messages"]
-    assert IP_KEYS_LIMIT == cfg["ip_keys"]
-    assert IP_GROUP_LIMIT == cfg["ip_groups"]
+    assert auth_limit == cfg["auth"]
+    assert messages_limit == cfg["messages"]
+    assert keys_limit == cfg["keys"]
+    assert group_limit == cfg["groups"]
+    assert ip_messages_limit == cfg["ip_messages"]
+    assert ip_keys_limit == cfg["ip_keys"]
+    assert ip_group_limit == cfg["ip_groups"]
 
 
 def test_rate_limit_key_uses_user_id_for_bearer_token(test_env):

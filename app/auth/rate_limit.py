@@ -40,12 +40,38 @@ def _rate_limit_key(request: Request) -> str:
 limiter = Limiter(key_func=_rate_limit_key)
 ip_limiter = Limiter(key_func=get_remote_address)
 
-AUTH_LIMIT: str = config["rate_limits"]["auth"]
-REFRESH_LIMIT: str = config["rate_limits"]["refresh"]
-LOGOUT_LIMIT: str = config["rate_limits"]["logout"]
-MESSAGES_LIMIT: str = config["rate_limits"]["messages"]
-KEYS_LIMIT: str = config["rate_limits"]["keys"]
-GROUP_LIMIT: str = config["rate_limits"]["groups"]
-IP_MESSAGES_LIMIT: str = config["rate_limits"]["ip_messages"]
-IP_KEYS_LIMIT: str = config["rate_limits"]["ip_keys"]
-IP_GROUP_LIMIT: str = config["rate_limits"]["ip_groups"]
+
+def auth_limit() -> str:
+    return config["rate_limits"]["auth"]
+
+
+def refresh_limit() -> str:
+    return config["rate_limits"]["refresh"]
+
+
+def logout_limit() -> str:
+    return config["rate_limits"]["logout"]
+
+
+def messages_limit() -> str:
+    return config["rate_limits"]["messages"]
+
+
+def keys_limit() -> str:
+    return config["rate_limits"]["keys"]
+
+
+def group_limit() -> str:
+    return config["rate_limits"]["groups"]
+
+
+def ip_messages_limit() -> str:
+    return config["rate_limits"]["ip_messages"]
+
+
+def ip_keys_limit() -> str:
+    return config["rate_limits"]["ip_keys"]
+
+
+def ip_group_limit() -> str:
+    return config["rate_limits"]["ip_groups"]

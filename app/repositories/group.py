@@ -75,11 +75,11 @@ class SQLGroupRepository:
             raise PermissionError("only the group creator can remove other members")
 
         deleted = self._session.execute(
-            delete(GroupMember).where(
-                GroupMember.group_id == group_id, GroupMember.user_id == user_id
-            )
-        ).rowcount
-        if deleted == 0:
+            delete(GroupMember)
+            .where(GroupMember.group_id == group_id, GroupMember.user_id == user_id)
+            .returning(GroupMember.user_id)
+        ).scalar()
+        if deleted is None:
             logger.debug("remove_member no-op: user not in group group_id=%d user_id=%d", group_id, user_id)
             return
 
@@ -229,9 +229,11 @@ class SQLGroupRepository:
 
     def revoke_group_message(self, message_id: int, sender_id: int) -> bool:
         deleted = self._session.execute(
-            delete(GroupMessage).where(GroupMessage.id == message_id, GroupMessage.sender_id == sender_id)
-        ).rowcount
-        if deleted == 0:
+            delete(GroupMessage)
+            .where(GroupMessage.id == message_id, GroupMessage.sender_id == sender_id)
+            .returning(GroupMessage.id)
+        ).scalar()
+        if deleted is None:
             logger.warning("group message revoke failed message_id=%d requester_id=%d", message_id, sender_id)
             return False
         self._session.commit()

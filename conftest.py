@@ -20,7 +20,7 @@ def _reset_engine() -> None:
 @pytest.fixture(autouse=False)
 def test_env(tmp_path, monkeypatch):
     monkeypatch.setenv("SERVER_MASTER_SECRET", "a" * 64)
-    monkeypatch.setenv("JWT_SECRET_KEY", "test_jwt_secret_key_32_bytes_long!")
+    monkeypatch.setenv("JWT_SECRET_KEY", "test_jwt_secret_key_for_ci_only_not_for_production")
     monkeypatch.setitem(config["server"], "db_path", str(tmp_path / "test.db"))
     _reset_engine()
     yield

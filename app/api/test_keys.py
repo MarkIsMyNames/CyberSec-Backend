@@ -92,10 +92,10 @@ def test_endpoints_reject_invalid_token(client, session):
 
 def test_endpoints_require_auth(client, session):
     bundle = _make_bundle()
-    assert client.post("/api/v1/keys/bundle", json=bundle).status_code == HTTPStatus.FORBIDDEN
-    assert client.post("/api/v1/keys/prekeys", json={"one_time_prekeys": []}).status_code == HTTPStatus.FORBIDDEN
-    assert client.get("/api/v1/keys/prekeys/count").status_code == HTTPStatus.FORBIDDEN
-    assert client.get("/api/v1/keys/1").status_code == HTTPStatus.FORBIDDEN
+    assert client.post("/api/v1/keys/bundle", json=bundle).status_code == HTTPStatus.UNAUTHORIZED
+    assert client.post("/api/v1/keys/prekeys", json={"one_time_prekeys": []}).status_code == HTTPStatus.UNAUTHORIZED
+    assert client.get("/api/v1/keys/prekeys/count").status_code == HTTPStatus.UNAUTHORIZED
+    assert client.get("/api/v1/keys/1").status_code == HTTPStatus.UNAUTHORIZED
 
 
 def test_fetch_nonexistent_user_returns_404(client, session):

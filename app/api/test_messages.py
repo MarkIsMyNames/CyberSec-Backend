@@ -116,10 +116,10 @@ def test_send_message_to_self_rejected(client, session):
 
 
 def test_unauthenticated_requests_rejected(client, session):
-    assert client.get("/api/v1/messages/").status_code == HTTPStatus.FORBIDDEN
-    assert client.post("/api/v1/messages/", json={}).status_code == HTTPStatus.FORBIDDEN
-    assert client.post("/api/v1/messages/1/receipt").status_code == HTTPStatus.FORBIDDEN
-    assert client.delete("/api/v1/messages/1").status_code == HTTPStatus.FORBIDDEN
+    assert client.get("/api/v1/messages/").status_code == HTTPStatus.UNAUTHORIZED
+    assert client.post("/api/v1/messages/", json={}).status_code == HTTPStatus.UNAUTHORIZED
+    assert client.post("/api/v1/messages/1/receipt").status_code == HTTPStatus.UNAUTHORIZED
+    assert client.delete("/api/v1/messages/1").status_code == HTTPStatus.UNAUTHORIZED
 
 
 def test_receipt_on_wrong_message_returns_404(client, session):

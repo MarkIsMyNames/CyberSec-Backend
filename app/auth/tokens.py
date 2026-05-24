@@ -2,6 +2,7 @@ import hashlib
 import os
 import secrets
 import time
+from collections.abc import Mapping
 from typing import Any, TypedDict
 
 import jwt
@@ -22,6 +23,21 @@ class TokenClaims(TypedDict, total=False):
     jti: str
     exp: int
     iat: int
+
+
+def parse_claims(raw: Mapping[str, object]) -> TokenClaims:
+    claims: TokenClaims = {}
+    if "sub" in raw:
+        claims["sub"] = str(raw["sub"])
+    if "scope" in raw:
+        claims["scope"] = str(raw["scope"])
+    if "jti" in raw:
+        claims["jti"] = str(raw["jti"])
+    if "exp" in raw:
+        claims["exp"] = int(str(raw["exp"]))
+    if "iat" in raw:
+        claims["iat"] = int(str(raw["iat"]))
+    return claims
 
 
 AUTH_CFG: dict[str, Any] = config["auth"]
@@ -75,9 +91,9 @@ def issue_refresh_token(user_id: int) -> str:
 
 def verify_token(token: str, expected_scope: str) -> TokenClaims:
     try:
-        claims: TokenClaims = jwt.decode(
+        claims: TokenClaims = parse_claims(jwt.decode(
             token, _secret(), algorithms=[AUTH_CFG["jwt_algorithm"]]
-        )
+        ))
     except jwt.PyJWTError as exc:
         logger.warning("token decode failed: %s", exc)
         raise InvalidTokenError(str(exc))

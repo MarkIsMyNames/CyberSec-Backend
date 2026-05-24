@@ -1,6 +1,7 @@
-from app.models.message import Message
 from app.repositories.message import SQLMessageRepository
 from app.repositories.user import SQLUserRepository
+import pytest
+from app.config import config
 
 
 def test_store_and_fetch_message(session):
@@ -76,8 +77,6 @@ def test_record_receipt_returns_false_for_missing_message(session):
 
 
 def test_store_message_raises_on_inbox_overflow(session, monkeypatch):
-    import pytest
-    from app.config import config
     monkeypatch.setitem(config["messaging"], "inbox_max_messages", 3)
     users = SQLUserRepository(session)
     msgs = SQLMessageRepository(session)

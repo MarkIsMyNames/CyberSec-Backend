@@ -26,10 +26,10 @@ class CreateGroupResponse(BaseModel):
 
 class AddMemberRequest(BaseModel):
     user_id: int
-    skdm_ciphertexts: dict[int, Base64]
+    skdm_ciphertext: Base64
 
-    def skdm_ciphertexts_bytes(self) -> dict[int, bytes]:
-        return {uid: base64.b64decode(ct) for uid, ct in self.skdm_ciphertexts.items()}
+    def skdm_ciphertext_bytes(self) -> bytes:
+        return base64.b64decode(self.skdm_ciphertext)
 
 
 class SendGroupMessageRequest(BaseModel):
@@ -41,10 +41,14 @@ class SendGroupMessageRequest(BaseModel):
 
 
 class SendSKDMRequest(BaseModel):
-    skdm_ciphertexts: dict[int, Base64]
+    skdm_ciphertexts: dict[int, Base64] = Field(min_length=1)
 
     def skdm_ciphertexts_bytes(self) -> dict[int, bytes]:
         return {uid: base64.b64decode(ct) for uid, ct in self.skdm_ciphertexts.items()}
+
+
+class SendGroupMessageResponse(BaseModel):
+    id: int
 
 
 class GroupMessageResponse(BaseModel):
@@ -72,7 +76,3 @@ class SKDMResponse(BaseModel):
 
 class GroupListResponse(BaseModel):
     groups: list[GroupResponse]
-
-
-class GroupEpochResponse(BaseModel):
-    epoch: int

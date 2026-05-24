@@ -2,6 +2,7 @@ import base64
 from http import HTTPStatus
 
 from app.security_tests.test_helper import auth_helper
+from app.config import config
 
 
 def test_send_and_receive_message(client, session):
@@ -141,7 +142,6 @@ def test_revoke_nonexistent_message_returns_403(client, session):
 
 
 def test_inbox_limit_enforced(client, session, monkeypatch):
-    from app.config import config
     monkeypatch.setitem(config["messaging"], "inbox_max_messages", 3)
     alice, alice_tok, _ = auth_helper(client, session, "alice")
     bob, _, _ = auth_helper(client, session, "bob")

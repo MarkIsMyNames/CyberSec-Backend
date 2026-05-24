@@ -1,7 +1,5 @@
 from sqlalchemy import delete, exists, func, literal, select, update
 from sqlalchemy.dialects.sqlite import insert
-import sqlcipher3.dbapi2
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.logger import logger
@@ -68,11 +66,6 @@ class SQLGroupRepository:
             )
             raise PermissionError("only the group creator can remove other members")
 
-        # Lock the group row
-        self._session.execute(
-            select(Group).where(Group.id == group_id).with_for_update()
-        )
-
         deleted = self._session.execute(
             delete(GroupMember).where(
                 GroupMember.group_id == group_id, GroupMember.user_id == user_id
@@ -81,68 +74,51 @@ class SQLGroupRepository:
         if deleted == 0:
             logger.debug("remove_member no-op: user not in group group_id=%d user_id=%d", group_id, user_id)
             return
-        self._session.flush()
-        remaining = self._session.scalar(
-            select(func.count()).select_from(GroupMember).where(GroupMember.group_id == group_id)
-        ) or 0
 
-        if remaining <= 1:
-            self._session.execute(delete(Group).where(Group.id == group_id))
-            logger.info("group deleted — only one member remaining group_id=%d", group_id)
-        else:
-            new_epoch = self._session.scalar(
-                update(Group)
-                .where(Group.id == group_id)
-                .values(epoch=Group.epoch + 1)
-                .returning(Group.epoch)
+        self._session.execute(
+            delete(Group).where(
+                Group.id == group_id,
+                select(func.count()).select_from(GroupMember).where(GroupMember.group_id == group_id).scalar_subquery() <= 1,
             )
-            if new_epoch is None:
-                raise RuntimeError("epoch update returned no value for group_id=%d" % group_id)
+        )
+        current_creator_id = self._session.scalar(
+            select(Group.creator_id).where(Group.id == group_id)
+        )
+        if current_creator_id is None:
+            self._session.commit()
+            return
 
-            current_creator_id = self._session.scalar(
-                select(Group.creator_id).where(Group.id == group_id)
+        if current_creator_id == user_id:
+            new_creator: GroupMember | None = self._session.scalar(
+                select(GroupMember)
+                .where(GroupMember.group_id == group_id)
+                .order_by(GroupMember.user_id)
+                .limit(1)
             )
-            if current_creator_id is None:
-                raise RuntimeError("group %d vanished mid-transaction" % group_id)
-
-            if current_creator_id == user_id:
-                new_creator: GroupMember | None = self._session.scalar(
-                    select(GroupMember)
-                    .where(GroupMember.group_id == group_id)
-                    .order_by(GroupMember.user_id)
-                    .limit(1)
-                )
-                if new_creator is None:
-                    self._session.execute(delete(Group).where(Group.id == group_id))
-                    logger.info("group deleted — creator left with no remaining members group_id=%d", group_id)
-                    self._session.commit()
-                    return
-                self._session.execute(
-                    update(Group).where(Group.id == group_id).values(creator_id=new_creator.user_id)
-                )
-                logger.info(
-                    "group creator reassigned group_id=%d new_creator_id=%d",
-                    group_id,
-                    new_creator.user_id,
-                )
-
+            if new_creator is None:
+                self._session.execute(delete(Group).where(Group.id == group_id))
+                logger.info("group deleted — creator left with no remaining members group_id=%d", group_id)
+                self._session.commit()
+                return
             self._session.execute(
-                delete(SenderKeyDistribution).where(SenderKeyDistribution.group_id == group_id)
+                update(Group).where(Group.id == group_id).values(creator_id=new_creator.user_id)
             )
-            if not is_self and skdm_ciphertexts:
-                self._session.add_all(
-                    SenderKeyDistribution(
-                        group_id=group_id,
-                        recipient_id=recipient_id,
-                        skdm_ciphertext=ciphertext,
-                        epoch=new_epoch,
-                    )
-                    for recipient_id, ciphertext in skdm_ciphertexts.items()
-                )
             logger.info(
-                "removed member group_id=%d user_id=%d epoch=%d remaining=%d",
-                group_id, user_id, new_epoch, remaining,
+                "group creator reassigned group_id=%d new_creator_id=%d",
+                group_id,
+                new_creator.user_id,
             )
+
+        self._session.execute(
+            delete(SenderKeyDistribution).where(SenderKeyDistribution.group_id == group_id)
+        )
+        if skdm_ciphertexts:
+            self._store_skdms(group_id, skdm_ciphertexts)
+        else:
+            self._session.execute(
+                update(Group).where(Group.id == group_id).values(epoch=Group.epoch + 1)
+            )
+        logger.info("removed member group_id=%d user_id=%d", group_id, user_id)
         self._session.commit()
 
     def get_groups_for_user(self, user_id: int) -> list[Group]:
@@ -167,28 +143,29 @@ class SQLGroupRepository:
             select(GroupMember).where(GroupMember.group_id == group_id, GroupMember.user_id == user_id)
         ) is not None
 
-    def store_skdms(
-        self, group_id: int, skdm_ciphertexts: dict[int, bytes]
-    ) -> None:
-        epoch: int | None = self._session.scalar(select(Group.epoch).where(Group.id == group_id))
+    def store_skdms(self, group_id: int, skdm_ciphertexts: dict[int, bytes]) -> None:
+        self._store_skdms(group_id, skdm_ciphertexts)
+        self._session.commit()
+
+    def _store_skdms(self, group_id: int, skdm_ciphertexts: dict[int, bytes]) -> None:
+        epoch: int | None = self._session.scalar(
+            update(Group)
+            .where(Group.id == group_id)
+            .values(epoch=Group.epoch + 1)
+            .returning(Group.epoch)
+        )
         if epoch is None:
             logger.warning("store_skdms failed — group not found group_id=%d", group_id)
             raise ValueError("group %d does not exist" % group_id)
-        try:
-            self._session.add_all(
-                SenderKeyDistribution(
-                    group_id=group_id,
-                    recipient_id=recipient_id,
-                    skdm_ciphertext=ciphertext,
-                    epoch=epoch,
-                )
-                for recipient_id, ciphertext in skdm_ciphertexts.items()
+        self._session.add_all(
+            SenderKeyDistribution(
+                group_id=group_id,
+                recipient_id=recipient_id,
+                skdm_ciphertext=ciphertext,
+                epoch=epoch,
             )
-            self._session.commit()
-        except (IntegrityError, sqlcipher3.dbapi2.IntegrityError):
-            self._session.rollback()
-            logger.warning("store_skdms failed — group deleted mid-transaction group_id=%d", group_id)
-            raise ValueError("group %d does not exist" % group_id)
+            for recipient_id, ciphertext in skdm_ciphertexts.items()
+        )
         logger.info("stored %d SKDMs group_id=%d epoch=%d", len(skdm_ciphertexts), group_id, epoch)
 
     def pop_skdms_for_user(self, user_id: int, group_id: int) -> list[tuple[int, bytes]]:
@@ -231,11 +208,14 @@ class SQLGroupRepository:
         )
         return msg
 
-    def get_group_messages(self, group_id: int) -> list[GroupMessage]:
+    def get_group_messages(self, group_id: int, user_id: int) -> list[GroupMessage]:
         messages = list(self._session.scalars(
-            select(GroupMessage).where(GroupMessage.group_id == group_id).order_by(GroupMessage.id)
+            select(GroupMessage)
+            .join(GroupMessageReceipt, (GroupMessageReceipt.message_id == GroupMessage.id) & (GroupMessageReceipt.user_id == user_id))
+            .where(GroupMessage.group_id == group_id)
+            .order_by(GroupMessage.id)
         ))
-        logger.debug("fetched %d group messages group_id=%d", len(messages), group_id)
+        logger.debug("fetched %d group messages group_id=%d user_id=%d", len(messages), group_id, user_id)
         return messages
 
     def revoke_group_message(self, message_id: int, sender_id: int) -> bool:

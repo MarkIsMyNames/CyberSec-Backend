@@ -109,7 +109,7 @@ def test_store_and_fetch_skdm(session):
     skdms = groups.pop_skdms_for_user(bob, group.id)
     assert len(skdms) == 1
     epoch, ciphertext = skdms[0]
-    assert epoch == 0
+    assert epoch == 1
     assert ciphertext == b"skdm_enc"
 
 
@@ -121,9 +121,9 @@ def test_store_group_message_and_revoke(session):
     group = groups.create_group("g", creator_id=alice)
     groups.add_member(group.id, alice, bob)
     msg = groups.store_group_message(group.id, alice, 0, b"\1")
-    assert len(groups.get_group_messages(group.id)) == 1
+    assert len(groups.get_group_messages(group.id, bob)) == 1
     assert groups.revoke_group_message(msg.id, alice) is True
-    assert groups.get_group_messages(group.id) == []
+    assert groups.get_group_messages(group.id, bob) == []
 
 
 def test_non_sender_cannot_revoke_group_message(session):
@@ -135,7 +135,7 @@ def test_non_sender_cannot_revoke_group_message(session):
     groups.add_member(group.id, alice, bob)
     msg = groups.store_group_message(group.id, alice, 0, b"\1")
     assert groups.revoke_group_message(msg.id, bob) is False
-    assert len(groups.get_group_messages(group.id)) == 1
+    assert len(groups.get_group_messages(group.id, bob)) == 1
 
 
 def test_sender_does_not_receive_own_group_message(session):
@@ -146,10 +146,10 @@ def test_sender_does_not_receive_own_group_message(session):
     group = groups.create_group("g", creator_id=alice)
     groups.add_member(group.id, alice, bob)
     groups.store_group_message(group.id, alice, 0, b"\1")
-    msgs = groups.get_group_messages(group.id)
+    msgs = groups.get_group_messages(group.id, bob)
     # Bob's ack is the last receipt (alice has none), so the message is deleted
     groups.record_group_receipt(msgs[0].id, bob)
-    assert groups.get_group_messages(group.id) == []
+    assert groups.get_group_messages(group.id, bob) == []
 
 
 def test_record_group_receipt_deletes_message_when_all_acknowledged(session):
@@ -163,9 +163,9 @@ def test_record_group_receipt_deletes_message_when_all_acknowledged(session):
     groups.add_member(group.id, alice, carol)
     msg = groups.store_group_message(group.id, alice, 0, b"\1")
     groups.record_group_receipt(msg.id, bob)
-    assert len(groups.get_group_messages(group.id)) == 1
+    assert len(groups.get_group_messages(group.id, carol)) == 1
     groups.record_group_receipt(msg.id, carol)
-    assert groups.get_group_messages(group.id) == []
+    assert groups.get_group_messages(group.id, carol) == []
 
 
 def test_revoke_group_message_not_found_returns_false(session):
@@ -228,13 +228,13 @@ def test_skdm_epoch_matches_group_epoch_at_store_time(session):
     groups.add_member(group.id, alice, bob)
     groups.add_member(group.id, alice, carol)
     groups.add_member(group.id, alice, dave)
-    # Force a removal to bump epoch to 1
+    # remove_member bumps epoch to 1; store_skdms bumps to 2
     groups.remove_member(group.id, alice, dave)
     groups.store_skdms(group.id, {bob: b"fresh_key"})
     skdms = groups.pop_skdms_for_user(bob, group.id)
     assert len(skdms) == 1
     epoch, _ = skdms[0]
-    assert epoch == 1
+    assert epoch == 2
 
 
 def test_forced_removal_purges_pending_skdms(session):
@@ -347,7 +347,7 @@ def test_record_group_receipt_noop_for_nonrecipient(session):
     # dave is not a recipient — calling record_group_receipt should not crash
     groups.record_group_receipt(msg.id, dave)
     # message must still be present because bob has not acknowledged
-    assert len(groups.get_group_messages(group.id)) == 1
+    assert len(groups.get_group_messages(group.id, bob)) == 1
 
 
 def test_store_group_message_receipt_list_is_atomic(session):
@@ -362,9 +362,9 @@ def test_store_group_message_receipt_list_is_atomic(session):
     msg = groups.store_group_message(group.id, alice, 0, b"\1")
     # Exactly bob and carol receive a receipt; alice (sender) must not
     groups.record_group_receipt(msg.id, bob)
-    assert len(groups.get_group_messages(group.id)) == 1  # carol hasn't acked
+    assert len(groups.get_group_messages(group.id, carol)) == 1  # carol hasn't acked
     groups.record_group_receipt(msg.id, carol)
-    assert groups.get_group_messages(group.id) == []  # all acked — deleted
+    assert groups.get_group_messages(group.id, carol) == []  # all acked — deleted
 
 
 def test_pop_skdms_discards_stale_epochs(session):
@@ -378,16 +378,94 @@ def test_pop_skdms_discards_stale_epochs(session):
     groups.add_member(group.id, alice, bob)
     groups.add_member(group.id, alice, carol)
     groups.add_member(group.id, alice, dave)
-    # Store a stale SKDM for bob at epoch 0
+    # store_skdms bumps epoch to 1 — stale key for bob
     groups.store_skdms(group.id, {bob: b"stale_key"})
-    # Force a removal to bump epoch to 1, purging the stale SKDM
+    # remove_member bumps epoch to 2, purging the stale SKDM
     groups.remove_member(group.id, alice, dave)
-    # Store a fresh SKDM for bob at epoch 1
+    # store_skdms bumps epoch to 3 — fresh key for bob
     groups.store_skdms(group.id, {bob: b"fresh_key"})
     results = groups.pop_skdms_for_user(bob, group.id)
     assert len(results) == 1
     epoch, ciphertext = results[0]
-    assert epoch == 1
+    assert epoch == 3
     assert ciphertext == b"fresh_key"
     # All rows consumed
     assert groups.pop_skdms_for_user(bob, group.id) == []
+
+
+def test_remove_member_noop_does_not_change_epoch(session):
+    users = SQLUserRepository(session)
+    groups = SQLGroupRepository(session)
+    alice = users.create_user("alice", "aa", "bb", b"t")
+    dave = users.create_user("dave", "aa", "bb", b"t")
+    group = groups.create_group("g", creator_id=alice)
+    groups.remove_member(group.id, alice, dave)
+    fetched = groups.get_group(group.id)
+    assert fetched is not None
+    assert fetched.epoch == 0
+
+
+def test_group_deleted_when_last_member_leaves(session):
+    users = SQLUserRepository(session)
+    groups = SQLGroupRepository(session)
+    alice = users.create_user("alice", "aa", "bb", b"t")
+    bob = users.create_user("bob", "aa", "bb", b"t")
+    group = groups.create_group("g", creator_id=alice)
+    groups.add_member(group.id, alice, bob)
+    # removing bob leaves alice alone — group dissolves
+    groups.remove_member(group.id, alice, bob)
+    assert groups.get_group(group.id) is None
+
+
+def test_store_skdms_increments_epoch(session):
+    users = SQLUserRepository(session)
+    groups = SQLGroupRepository(session)
+    alice = users.create_user("alice", "aa", "bb", b"t")
+    bob = users.create_user("bob", "aa", "bb", b"t")
+    group = groups.create_group("g", creator_id=alice)
+    groups.add_member(group.id, alice, bob)
+    assert groups.get_group(group.id).epoch == 0
+    groups.store_skdms(group.id, {bob: b"key"})
+    assert groups.get_group(group.id).epoch == 1
+    groups.store_skdms(group.id, {bob: b"key2"})
+    assert groups.get_group(group.id).epoch == 2
+
+
+def test_is_member_returns_correct_values(session):
+    users = SQLUserRepository(session)
+    groups = SQLGroupRepository(session)
+    alice = users.create_user("alice", "aa", "bb", b"t")
+    bob = users.create_user("bob", "aa", "bb", b"t")
+    group = groups.create_group("g", creator_id=alice)
+    assert groups.is_member(group.id, alice) is True
+    assert groups.is_member(group.id, bob) is False
+    groups.add_member(group.id, alice, bob)
+    assert groups.is_member(group.id, bob) is True
+
+
+def test_get_group_messages_only_returns_messages_for_user(session):
+    users = SQLUserRepository(session)
+    groups = SQLGroupRepository(session)
+    alice = users.create_user("alice", "aa", "bb", b"t")
+    bob = users.create_user("bob", "aa", "bb", b"t")
+    group = groups.create_group("g", creator_id=alice)
+    groups.add_member(group.id, alice, bob)
+    groups.store_group_message(group.id, alice, 0, b"ct")
+    assert len(groups.get_group_messages(group.id, bob)) == 1
+    assert groups.get_group_messages(group.id, alice) == []
+
+
+def test_forced_removal_skdms_are_at_post_removal_epoch(session):
+    users = SQLUserRepository(session)
+    groups = SQLGroupRepository(session)
+    alice = users.create_user("alice", "aa", "bb", b"t")
+    bob = users.create_user("bob", "aa", "bb", b"t")
+    carol = users.create_user("carol", "aa", "bb", b"t")
+    group = groups.create_group("g", creator_id=alice)
+    groups.add_member(group.id, alice, bob)
+    groups.add_member(group.id, alice, carol)
+    groups.remove_member(group.id, alice, bob, {carol: b"fresh"})
+    group_epoch = groups.get_group(group.id).epoch
+    skdms = groups.pop_skdms_for_user(carol, group.id)
+    assert len(skdms) == 1
+    assert skdms[0][0] == group_epoch

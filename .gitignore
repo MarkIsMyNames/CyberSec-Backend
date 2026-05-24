@@ -63,11 +63,8 @@ Thumbs.db
 *.key
 *.crt
 *.p12
-
-securemsg.db
-securemsg.log
-
-
+*.log
+*.log.*
 
 docs
 memory

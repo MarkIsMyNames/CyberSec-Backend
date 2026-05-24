@@ -2,15 +2,12 @@ from http import HTTPStatus
 
 from app.security_tests.test_helper import auth_helper
 
-
 # --- get_current_user ---
 
 
 def test_get_current_user_valid_token(client, session):
     _, tok, _ = auth_helper(client, session, "alice")
-    resp = client.get(
-        "/api/v1/messages/", headers={"Authorization": "Bearer %s" % tok}
-    )
+    resp = client.get("/api/v1/messages/", headers={"Authorization": "Bearer %s" % tok})
     assert resp.status_code == HTTPStatus.OK
 
 
@@ -29,9 +26,7 @@ def test_get_current_user_wrong_scope(client, session, test_env):
     from app.auth.tokens import issue_preauth_token
 
     tok = issue_preauth_token(user_id=999)
-    resp = client.get(
-        "/api/v1/messages/", headers={"Authorization": "Bearer %s" % tok}
-    )
+    resp = client.get("/api/v1/messages/", headers={"Authorization": "Bearer %s" % tok})
     assert resp.status_code == HTTPStatus.UNAUTHORIZED
 
 
@@ -39,9 +34,7 @@ def test_get_current_user_deleted_user(client, session, test_env):
     from app.auth.tokens import issue_access_token
 
     tok = issue_access_token(user_id=99999)
-    resp = client.get(
-        "/api/v1/messages/", headers={"Authorization": "Bearer %s" % tok}
-    )
+    resp = client.get("/api/v1/messages/", headers={"Authorization": "Bearer %s" % tok})
     assert resp.status_code == HTTPStatus.UNAUTHORIZED
 
 
@@ -65,9 +58,7 @@ def test_require_valid_refresh_invalid_token(client):
 
 def test_require_valid_refresh_wrong_scope(client, session):
     _, access_tok, _ = auth_helper(client, session, "alice")
-    resp = client.post(
-        "/api/v1/auth/refresh", json={"refresh_token": access_tok}
-    )
+    resp = client.post("/api/v1/auth/refresh", json={"refresh_token": access_tok})
     assert resp.status_code == HTTPStatus.UNAUTHORIZED
 
 

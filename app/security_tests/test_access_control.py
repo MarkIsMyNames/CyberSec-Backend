@@ -155,7 +155,10 @@ def test_non_creator_member_cannot_add_member(client, session):
     )
     resp = client.post(
         "/api/v1/groups/%d/members" % group["id"],
-        json={"user_id": carol.id, "skdm_ciphertext": base64.b64encode(b"skdm").decode()},
+        json={
+            "user_id": carol.id,
+            "skdm_ciphertext": base64.b64encode(b"skdm").decode(),
+        },
         headers={"Authorization": "Bearer %s" % bob_tok},
     )
     assert resp.status_code == HTTPStatus.FORBIDDEN
@@ -215,8 +218,14 @@ def test_unauthenticated_cannot_access_group_endpoints(client, session):
         headers={"Authorization": "Bearer %s" % alice_tok},
     ).json()
     assert client.get("/api/v1/groups/").status_code == HTTPStatus.UNAUTHORIZED
-    assert client.post("/api/v1/groups/", json={"name": "x"}).status_code == HTTPStatus.UNAUTHORIZED
-    assert client.get("/api/v1/groups/%d" % group["id"]).status_code == HTTPStatus.UNAUTHORIZED
+    assert (
+        client.post("/api/v1/groups/", json={"name": "x"}).status_code
+        == HTTPStatus.UNAUTHORIZED
+    )
+    assert (
+        client.get("/api/v1/groups/%d" % group["id"]).status_code
+        == HTTPStatus.UNAUTHORIZED
+    )
     assert (
         client.post("/api/v1/groups/%d/members" % group["id"], json={}).status_code
         == HTTPStatus.UNAUTHORIZED
@@ -225,15 +234,27 @@ def test_unauthenticated_cannot_access_group_endpoints(client, session):
 
 def test_unauthenticated_cannot_access_message_endpoints(client):
     assert client.get("/api/v1/messages/").status_code == HTTPStatus.UNAUTHORIZED
-    assert client.post("/api/v1/messages/", json={}).status_code == HTTPStatus.UNAUTHORIZED
-    assert client.post("/api/v1/messages/1/receipt").status_code == HTTPStatus.UNAUTHORIZED
+    assert (
+        client.post("/api/v1/messages/", json={}).status_code == HTTPStatus.UNAUTHORIZED
+    )
+    assert (
+        client.post("/api/v1/messages/1/receipt").status_code == HTTPStatus.UNAUTHORIZED
+    )
     assert client.delete("/api/v1/messages/1").status_code == HTTPStatus.UNAUTHORIZED
 
 
 def test_unauthenticated_cannot_access_key_endpoints(client):
-    assert client.post("/api/v1/keys/bundle", json={}).status_code == HTTPStatus.UNAUTHORIZED
-    assert client.post("/api/v1/keys/prekeys", json={}).status_code == HTTPStatus.UNAUTHORIZED
-    assert client.get("/api/v1/keys/prekeys/count").status_code == HTTPStatus.UNAUTHORIZED
+    assert (
+        client.post("/api/v1/keys/bundle", json={}).status_code
+        == HTTPStatus.UNAUTHORIZED
+    )
+    assert (
+        client.post("/api/v1/keys/prekeys", json={}).status_code
+        == HTTPStatus.UNAUTHORIZED
+    )
+    assert (
+        client.get("/api/v1/keys/prekeys/count").status_code == HTTPStatus.UNAUTHORIZED
+    )
     assert client.get("/api/v1/keys/1").status_code == HTTPStatus.UNAUTHORIZED
 
 

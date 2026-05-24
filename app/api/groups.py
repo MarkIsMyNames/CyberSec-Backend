@@ -5,10 +5,10 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response
 
 from app.api.deps import get_current_user, require_group_member
 from app.auth.rate_limit import (
-    GROUP_LIMIT,
-    IP_GROUP_LIMIT,
-    IP_MESSAGES_LIMIT,
-    MESSAGES_LIMIT,
+    group_limit,
+    ip_group_limit,
+    ip_messages_limit,
+    messages_limit,
     ip_limiter,
     limiter,
 )
@@ -36,8 +36,8 @@ router = APIRouter()
 
 
 @router.get("/", response_model=GroupListResponse)
-@limiter.limit(GROUP_LIMIT)
-@ip_limiter.limit(IP_GROUP_LIMIT)
+@limiter.limit(group_limit)
+@ip_limiter.limit(ip_group_limit)
 async def list_groups(
     request: Request,
     current_user: User = Depends(get_current_user),
@@ -59,8 +59,8 @@ async def list_groups(
 
 
 @router.post("/", response_model=CreateGroupResponse, status_code=HTTPStatus.CREATED)
-@limiter.limit(GROUP_LIMIT)
-@ip_limiter.limit(IP_GROUP_LIMIT)
+@limiter.limit(group_limit)
+@ip_limiter.limit(ip_group_limit)
 async def create_group(
     request: Request,
     body: CreateGroupRequest,
@@ -85,8 +85,8 @@ async def create_group(
 
 
 @router.get("/{group_id}", response_model=GroupResponse)
-@limiter.limit(GROUP_LIMIT)
-@ip_limiter.limit(IP_GROUP_LIMIT)
+@limiter.limit(group_limit)
+@ip_limiter.limit(ip_group_limit)
 async def get_group_info(
     request: Request,
     group_id: int,
@@ -100,8 +100,8 @@ async def get_group_info(
 
 
 @router.post("/{group_id}/members", status_code=HTTPStatus.NO_CONTENT)
-@limiter.limit(GROUP_LIMIT)
-@ip_limiter.limit(IP_GROUP_LIMIT)
+@limiter.limit(group_limit)
+@ip_limiter.limit(ip_group_limit)
 async def add_member(
     request: Request,
     body: AddMemberRequest,
@@ -126,8 +126,8 @@ async def add_member(
 
 
 @router.delete("/{group_id}/members/{user_id}", status_code=HTTPStatus.NO_CONTENT)
-@limiter.limit(GROUP_LIMIT)
-@ip_limiter.limit(IP_GROUP_LIMIT)
+@limiter.limit(group_limit)
+@ip_limiter.limit(ip_group_limit)
 async def remove_member(
     request: Request,
     user_id: int,
@@ -164,8 +164,8 @@ async def remove_member(
     response_model=SendGroupMessageResponse,
     status_code=HTTPStatus.CREATED,
 )
-@limiter.limit(MESSAGES_LIMIT)
-@ip_limiter.limit(IP_MESSAGES_LIMIT)
+@limiter.limit(messages_limit)
+@ip_limiter.limit(ip_messages_limit)
 async def send_group_message(
     request: Request,
     body: SendGroupMessageRequest,
@@ -186,8 +186,8 @@ async def send_group_message(
 
 
 @router.get("/{group_id}/messages", response_model=list[GroupMessageResponse])
-@limiter.limit(MESSAGES_LIMIT)
-@ip_limiter.limit(IP_MESSAGES_LIMIT)
+@limiter.limit(messages_limit)
+@ip_limiter.limit(ip_messages_limit)
 async def list_group_messages(
     request: Request,
     group: Group = Depends(require_group_member),
@@ -207,8 +207,8 @@ async def list_group_messages(
 
 
 @router.delete("/{group_id}/messages/{msg_id}", status_code=HTTPStatus.NO_CONTENT)
-@limiter.limit(MESSAGES_LIMIT)
-@ip_limiter.limit(IP_MESSAGES_LIMIT)
+@limiter.limit(messages_limit)
+@ip_limiter.limit(ip_messages_limit)
 async def revoke_group_message(
     request: Request,
     msg_id: int,
@@ -236,8 +236,8 @@ async def revoke_group_message(
 
 
 @router.post("/{group_id}/messages/{msg_id}/receipt", status_code=HTTPStatus.NO_CONTENT)
-@limiter.limit(MESSAGES_LIMIT)
-@ip_limiter.limit(IP_MESSAGES_LIMIT)
+@limiter.limit(messages_limit)
+@ip_limiter.limit(ip_messages_limit)
 async def record_group_message_receipt(
     request: Request,
     msg_id: int,
@@ -256,8 +256,8 @@ async def record_group_message_receipt(
 
 
 @router.post("/{group_id}/skdm", status_code=HTTPStatus.NO_CONTENT)
-@limiter.limit(MESSAGES_LIMIT)
-@ip_limiter.limit(IP_MESSAGES_LIMIT)
+@limiter.limit(messages_limit)
+@ip_limiter.limit(ip_messages_limit)
 async def send_skdms(
     request: Request,
     body: SendSKDMRequest,
@@ -272,8 +272,8 @@ async def send_skdms(
 
 
 @router.get("/{group_id}/skdm", response_model=SKDMResponse)
-@limiter.limit(MESSAGES_LIMIT)
-@ip_limiter.limit(IP_MESSAGES_LIMIT)
+@limiter.limit(messages_limit)
+@ip_limiter.limit(ip_messages_limit)
 async def pop_skdms(
     request: Request,
     group: Group = Depends(require_group_member),

@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 
 from app.api.deps import require_preauth_user, require_valid_refresh
 from app.auth.tokens import TokenClaims
-from app.auth.rate_limit import AUTH_LIMIT, LOGOUT_LIMIT, REFRESH_LIMIT, limiter
+from app.auth.rate_limit import auth_limit, logout_limit, refresh_limit, limiter
 from app.auth.srp_session import srp_init, srp_verify
 from app.auth.tokens import (
     issue_access_token,
@@ -45,7 +45,7 @@ router = APIRouter()
 @router.post(
     "/register", response_model=RegisterResponse, status_code=HTTPStatus.CREATED
 )
-@limiter.limit(AUTH_LIMIT)
+@limiter.limit(auth_limit)
 async def register(
     request: Request,
     body: RegisterRequest,
@@ -68,7 +68,7 @@ async def register(
 
 
 @router.post("/srp-init", response_model=SRPInitResponse)
-@limiter.limit(AUTH_LIMIT)
+@limiter.limit(auth_limit)
 async def srp_init_endpoint(
     request: Request,
     body: SRPInitRequest,
@@ -103,7 +103,7 @@ async def srp_init_endpoint(
 
 
 @router.post("/srp-verify", response_model=SRPVerifyResponse)
-@limiter.limit(AUTH_LIMIT)
+@limiter.limit(auth_limit)
 async def srp_verify_endpoint(
     request: Request,
     body: SRPVerifyRequest,
@@ -136,7 +136,7 @@ async def srp_verify_endpoint(
 
 
 @router.post("/verify-2fa", response_model=TokenResponse)
-@limiter.limit(AUTH_LIMIT)
+@limiter.limit(auth_limit)
 async def verify_2fa(
     request: Request,
     body: VerifyTOTPRequest,
@@ -158,7 +158,7 @@ async def verify_2fa(
 
 
 @router.post("/refresh", response_model=TokenResponse)
-@limiter.limit(REFRESH_LIMIT)
+@limiter.limit(refresh_limit)
 async def refresh_tokens(
     request: Request,
     claims: TokenClaims = Depends(require_valid_refresh),
@@ -171,7 +171,7 @@ async def refresh_tokens(
 
 
 @router.post("/logout", status_code=HTTPStatus.NO_CONTENT)
-@limiter.limit(LOGOUT_LIMIT)
+@limiter.limit(logout_limit)
 async def logout(
     request: Request,
     claims: TokenClaims = Depends(require_valid_refresh),

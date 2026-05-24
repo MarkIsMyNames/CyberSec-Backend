@@ -43,3 +43,10 @@ def client(db):
     ip_limiter.reset()
     with TestClient(application) as c:
         yield c
+
+
+@pytest.fixture
+def low_limits(monkeypatch):
+    """Patch all rate limits to 3/minute so tests need only 4 requests to trigger a 429."""
+    for key in config["rate_limits"]:
+        monkeypatch.setitem(config["rate_limits"], key, "3/minute")

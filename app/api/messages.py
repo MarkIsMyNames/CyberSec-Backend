@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 
 from app.api.deps import get_current_user
 from app.config import config
-from app.auth.rate_limit import IP_MESSAGES_LIMIT, MESSAGES_LIMIT, ip_limiter, limiter
+from app.auth.rate_limit import ip_messages_limit, messages_limit, ip_limiter, limiter
 from app.dependencies import repo_dep
 from app.logger import logger
 from app.models.user import User
@@ -20,8 +20,8 @@ router = APIRouter()
 
 
 @router.post("/", response_model=SendMessageResponse, status_code=HTTPStatus.CREATED)
-@limiter.limit(MESSAGES_LIMIT)
-@ip_limiter.limit(IP_MESSAGES_LIMIT)
+@limiter.limit(messages_limit)
+@ip_limiter.limit(ip_messages_limit)
 async def send_message(
     request: Request,
     body: SendMessageRequest,
@@ -56,8 +56,8 @@ async def send_message(
 
 
 @router.get("/", response_model=list[MessageResponse])
-@limiter.limit(MESSAGES_LIMIT)
-@ip_limiter.limit(IP_MESSAGES_LIMIT)
+@limiter.limit(messages_limit)
+@ip_limiter.limit(ip_messages_limit)
 async def list_messages(
     request: Request,
     current_user: User = Depends(get_current_user),
@@ -82,8 +82,8 @@ async def list_messages(
 
 
 @router.post("/{message_id}/receipt", status_code=HTTPStatus.NO_CONTENT)
-@limiter.limit(MESSAGES_LIMIT)
-@ip_limiter.limit(IP_MESSAGES_LIMIT)
+@limiter.limit(messages_limit)
+@ip_limiter.limit(ip_messages_limit)
 async def mark_receipt(
     request: Request,
     message_id: int,
@@ -106,8 +106,8 @@ async def mark_receipt(
 
 
 @router.delete("/{message_id}", status_code=HTTPStatus.NO_CONTENT)
-@limiter.limit(MESSAGES_LIMIT)
-@ip_limiter.limit(IP_MESSAGES_LIMIT)
+@limiter.limit(messages_limit)
+@ip_limiter.limit(ip_messages_limit)
 async def revoke(
     request: Request,
     message_id: int,

@@ -1,5 +1,5 @@
 from sqlalchemy import delete, func, select
-from sqlalchemy.dialects.sqlite import insert
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from app.logger import logger

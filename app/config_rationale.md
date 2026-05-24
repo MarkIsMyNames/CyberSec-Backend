@@ -17,10 +17,9 @@ Random nonces collide after ~2^48 messages under the same key (birthday paradox)
 breaking GCM's integrity guarantees. A counter guarantees uniqueness with no
 probability involved. NIST SP 800-38D §8.2.1 recommends deterministic construction.
 
-**max_message_bytes: 10485760**
-The AES-256-GCM block limit (~64 GiB, NIST SP 800-38D §B.2) is not a practical
-constraint for messages. 10 MiB is a DoS protection limit — an uncapped upload
-would allow an attacker to exhaust server memory with a single request.
+**max_message_bytes: 102400**
+DoS protection — an uncapped upload would allow an attacker to exhaust server memory
+with a single request. 100 KiB is sufficient for E2E encrypted message payloads.
 
 **sender_key_rotation: on_membership_change**
 Matches the Signal Sender Key protocol exactly. The chain key ratchets forward
@@ -68,17 +67,13 @@ A shorter output becomes the bottleneck — an attacker only needs to find a
 collision in the hash output rather than crack the full password space.
 32 bytes matches the AES-256 key size, keeping security levels consistent.
 
-**symmetric_key_length_bytes: 32**
-AES-256 key size used for Double Ratchet chain keys and message keys.
-32 bytes = 256 bits; matches the AEAD algorithm choice (AES-256-GCM).
-
 **totp_key_length_bytes: 32**
 AES-256 key size for encrypting TOTP secrets at rest. Kept separate from
 symmetric_key_length_bytes so the two can diverge independently if needed.
 
-**hkdf_info_strings**
-Without domain separation, a key derived for message encryption could be
-submitted as an auth token — cross-purpose key misuse attacks become possible.
+**hkdf_info_strings** (`totp_encryption`)
+Without domain separation, a key derived for one purpose could be reused in another
+context — cross-purpose key misuse attacks become possible.
 RFC 5869 §3.2 requires distinct info strings per use case to prevent this.
 
 ---
@@ -188,23 +183,11 @@ any `bytes.fromhex()` call, rejecting malformed input at the schema layer.
 Used as the TOTP issuer name in provisioning URIs shown to users in their
 authenticator app. Must match the name users expect to see.
 
-**max_upload_bytes: 10485760**
-Hard limit at the HTTP layer (before parsing) matching max_message_bytes.
-Prevents memory exhaustion from oversized request bodies regardless of endpoint.
+**db_pool_size: 10**
+Persistent connections kept open in the pool. Avoids the latency cost of
+establishing a new TCP connection to PostgreSQL on every request.
 
-**tls_min_version: TLSv1.3**
-TLS 1.2 permits cipher suites without forward secrecy — one stolen server key
-decrypts all past recorded sessions. TLS 1.3 mandates ephemeral key exchange
-on every handshake. RFC 8446 deprecates all TLS versions below 1.3.
-
-**cors_origins: []**
-A wildcard CORS policy lets any malicious website make authenticated API
-requests using the victim's session credentials, enabling CSRF-style attacks.
-Must be set explicitly per deployment.
-OWASP CORS Security Cheat Sheet requires explicit origin allowlists.
-
-**db_url: "sqlite://"**
-SQLAlchemy connection URL passed to `create_engine`. The empty path (`sqlite://`
-with no file component) is intentional: the actual database path is supplied via
-the `creator` callable, which opens a SQLCipher connection directly. Using a
-plain `sqlite:///path` URL would bypass SQLCipher and open an unencrypted file.
+**db_max_overflow: 20**
+Extra connections allowed above pool_size under burst load. Total maximum
+concurrent connections = pool_size + db_max_overflow = 30. Overflow connections
+are closed when demand subsides; pool_size connections remain open permanently.

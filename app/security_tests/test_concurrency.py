@@ -8,9 +8,8 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
-from sqlcipher3.dbapi2 import IntegrityError
+import psycopg2.errors
 
-import app.session
 from app.config import config
 from app.database import init_db
 from app.models.group import GroupMessage
@@ -20,27 +19,19 @@ from app.repositories.group import SQLGroupRepository
 from app.repositories.key_bundle import SQLKeyBundleRepository
 from app.repositories.message import SQLMessageRepository
 from app.repositories.user import SQLUserRepository
-from app.session import engine_lock, get_engine
-
-
-def _reset_engine() -> None:
-    with engine_lock:
-        if app.session.engine is not None:
-            app.session.engine.dispose()
-        app.session.engine = None
+from app.session import get_engine, reset_engine
 
 
 @pytest.fixture
-def concurrent_db(tmp_path, monkeypatch):
+def concurrent_db(monkeypatch):
     monkeypatch.setenv("SERVER_MASTER_SECRET", "a" * 64)
     monkeypatch.setenv(
         "JWT_SECRET_KEY", "test_jwt_secret_key_for_ci_only_not_for_production"
     )
-    monkeypatch.setitem(config["server"], "db_path", str(tmp_path / "test.db"))
-    _reset_engine()
+    reset_engine()
     init_db()
     yield get_engine()
-    _reset_engine()
+    reset_engine()
 
 
 def test_concurrent_pop_one_time_prekey_no_duplicate(concurrent_db):
@@ -405,7 +396,7 @@ def test_concurrent_refresh_token_replay_only_one_succeeds(concurrent_db):
                 else:
                     with lock:
                         successes.append(False)
-        except (SQLAlchemyError, IntegrityError):
+        except (SQLAlchemyError, psycopg2.errors.UniqueViolation):
             with lock:
                 successes.append(False)
 

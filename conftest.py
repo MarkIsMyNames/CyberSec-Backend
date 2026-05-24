@@ -1,30 +1,41 @@
+import os
+import uuid
+
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine, text
 
 from app.auth.rate_limit import ip_limiter, limiter
 from app.config import config
 from app.database import init_db
 from app.dependencies import get_session
 from app.main import application
-from app.session import engine_lock
-import app.session
+from app.session import reset_engine
 
 
-def _reset_engine() -> None:
-    with engine_lock:
-        if app.session.engine is not None:
-            app.session.engine.dispose()
-        app.session.engine = None
+def _admin_engine():
+    return create_engine(os.environ["DATABASE_URL"], isolation_level="AUTOCOMMIT")
 
 
 @pytest.fixture(autouse=False)
-def test_env(tmp_path, monkeypatch):
+def test_env(monkeypatch):
     monkeypatch.setenv("SERVER_MASTER_SECRET", "a" * 64)
     monkeypatch.setenv("JWT_SECRET_KEY", "test_jwt_secret_key_for_ci_only_not_for_production")
-    monkeypatch.setitem(config["server"], "db_path", str(tmp_path / "test.db"))
-    _reset_engine()
+    schema = "test_%s" % uuid.uuid4().hex
+    monkeypatch.setenv("DATABASE_URL", _build_schema_url(schema))
+    with _admin_engine().connect() as conn:
+        conn.execute(text("CREATE SCHEMA %s" % schema))
+    reset_engine()
     yield
-    _reset_engine()
+    reset_engine()
+    with _admin_engine().connect() as conn:
+        conn.execute(text("DROP SCHEMA %s CASCADE" % schema))
+
+
+def _build_schema_url(schema: str) -> str:
+    base = os.environ["DATABASE_URL"]
+    sep = "&" if "?" in base else "?"
+    return "%s%soptions=-csearch_path%%3D%s" % (base, sep, schema)
 
 
 @pytest.fixture

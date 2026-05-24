@@ -67,14 +67,16 @@ A shorter output becomes the bottleneck — an attacker only needs to find a
 collision in the hash output rather than crack the full password space.
 32 bytes matches the AES-256 key size, keeping security levels consistent.
 
-**totp_key_length_bytes: 32**
-AES-256 key size for encrypting TOTP secrets at rest. Kept separate from
-symmetric_key_length_bytes so the two can diverge independently if needed.
+**encryption_key_length_bytes: 32**
+AES-256 key size used for all application-layer encryption (TOTP secrets and SRP
+verifiers at rest). Encrypting these values means a stolen database dump alone is
+insufficient for an offline attack — the attacker also needs SERVER_MASTER_SECRET.
 
-**hkdf_info_strings** (`totp_encryption`)
-Without domain separation, a key derived for one purpose could be reused in another
-context — cross-purpose key misuse attacks become possible.
-RFC 5869 §3.2 requires distinct info strings per use case to prevent this.
+**hkdf_info_strings** (`encryption`)
+Binds derived keys to this application. TOTP and SRP verifier keys use the same info
+string but different lengths — HKDF outputs with different lengths are independent
+because each expansion block is keyed separately, so no domain separation string is
+needed between them.
 
 ---
 

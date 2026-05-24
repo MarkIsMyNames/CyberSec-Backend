@@ -3,8 +3,8 @@ import base64
 import pyotp
 
 from app.auth.totp import (
-    decrypt_totp_secret,
-    encrypt_totp_secret,
+    decrypt,
+    encrypt,
     generate_totp_secret,
     get_provisioning_uri,
     verify_totp,
@@ -37,6 +37,6 @@ def test_provisioning_uri_contains_username():
 
 def test_encrypt_decrypt_totp_secret(test_env):
     secret = "BASE32SECRET"
-    enc = encrypt_totp_secret(secret)
+    enc = encrypt(secret.encode())
     assert isinstance(enc, bytes)
-    assert decrypt_totp_secret(enc) == secret
+    assert decrypt(enc).decode() == secret

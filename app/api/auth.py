@@ -12,8 +12,8 @@ from app.auth.tokens import (
     issue_refresh_token,
 )
 from app.auth.totp import (
-    decrypt_totp_secret,
-    encrypt_totp_secret,
+    decrypt,
+    encrypt,
     generate_totp_secret,
     get_provisioning_uri,
     verify_totp,
@@ -58,10 +58,9 @@ async def register(
         logger.warning("register failed: username taken username=%s", body.username)
         raise HTTPException(status_code=HTTPStatus.CONFLICT, detail="Username taken")
     totp_secret = generate_totp_secret()
-    totp_enc = encrypt_totp_secret(totp_secret)
-    user_id = repo.create_user(
-        body.username, body.srp_salt, body.srp_verifier, totp_enc
-    )
+    totp_enc = encrypt(totp_secret.encode())
+    verifier_enc = encrypt(bytes.fromhex(body.srp_verifier))
+    user_id = repo.create_user(body.username, body.srp_salt, verifier_enc, totp_enc)
     uri = get_provisioning_uri(totp_secret, body.username)
     logger.info("register success username=%s user_id=%d", body.username, user_id)
     return RegisterResponse(user_id=user_id, totp_provisioning_uri=uri)
@@ -84,8 +83,9 @@ async def srp_init_endpoint(
             status_code=HTTPStatus.UNAUTHORIZED, detail="Invalid credentials"
         )
     try:
+        verifier_hex = decrypt(user.srp_verifier_enc).hex()
         session_id, salt, server_public = srp_init(
-            body.username, user.srp_salt, user.srp_verifier, body.client_public
+            body.username, user.srp_salt, verifier_hex, body.client_public
         )
     except Exception:
         logger.warning(
@@ -143,7 +143,7 @@ async def verify_2fa(
     user: User = Depends(require_preauth_user),
 ) -> TokenResponse:
     logger.info("2fa attempt ip=%s user_id=%d", _client_ip(request), user.id)
-    totp_secret = decrypt_totp_secret(user.totp_secret_enc)
+    totp_secret = decrypt(user.totp_secret_enc).decode()
     if not verify_totp(totp_secret, body.totp_code):
         logger.warning(
             "2fa failed: wrong totp code user_id=%d ip=%s", user.id, _client_ip(request)

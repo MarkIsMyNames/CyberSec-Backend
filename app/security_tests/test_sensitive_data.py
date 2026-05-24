@@ -56,7 +56,7 @@ def test_srp_verifier_stored_not_password(client, session):
     )
     user = SQLUserRepository(session).get_user_by_username("dave")
     assert user is not None
-    assert "correcthorsebattery" not in user.srp_verifier
+    assert "correcthorsebattery" not in user.srp_verifier_enc.hex()
     assert "correcthorsebattery" not in user.srp_salt
 
 

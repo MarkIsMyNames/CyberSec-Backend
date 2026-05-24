@@ -8,7 +8,7 @@ POSITIVE_INT_KEYS = [
     ("auth", "preauth_token_ttl_seconds"),
     ("auth", "srp_session_ttl_seconds"),
     ("auth", "secret_token_bytes"),
-    ("crypto", "totp_key_length_bytes"),
+    ("crypto", "encryption_key_length_bytes"),
     ("auth", "totp_window"),
     ("server", "time_for_enforced_http"),
     ("logging", "log_max_bytes"),

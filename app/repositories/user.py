@@ -10,14 +10,18 @@ class SQLUserRepository:
         self._session = session
 
     def create_user(
-        self, username: str, srp_salt: str, srp_verifier: str, totp_secret_enc: bytes
+        self,
+        username: str,
+        srp_salt: str,
+        srp_verifier_enc: bytes,
+        totp_secret_enc: bytes,
     ) -> int:
         user_id: int = self._session.execute(
             insert(User)
             .values(
                 username=username,
                 srp_salt=srp_salt,
-                srp_verifier=srp_verifier,
+                srp_verifier_enc=srp_verifier_enc,
                 totp_secret_enc=totp_secret_enc,
             )
             .returning(User.id)

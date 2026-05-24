@@ -1,7 +1,7 @@
 import pyotp
 import srp
 
-from app.auth.totp import decrypt_totp_secret
+from app.auth.totp import decrypt
 from app.repositories.user import SQLUserRepository
 
 
@@ -79,7 +79,7 @@ def auth_helper(client, session, username: str, password: str = "correcthorsebat
     repo = SQLUserRepository(session)
     user = repo.get_user_by_username(username)
     assert user is not None
-    totp_secret = decrypt_totp_secret(bytes(user.totp_secret_enc))
+    totp_secret = decrypt(bytes(user.totp_secret_enc)).decode()
     code = pyotp.TOTP(totp_secret).now()
     tokens = client.post(
         "/api/v1/auth/verify-2fa",

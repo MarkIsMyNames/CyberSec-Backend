@@ -3,9 +3,9 @@
     "max_message_bytes": 102400,
     "nonce_length_bytes": 12,
     "hkdf_info_strings": {
-      "totp_encryption": "SecureMsg-v1-totp-encryption"
+      "encryption": "SecureMsg-v1-encryption"
     },
-    "totp_key_length_bytes": 32
+    "encryption_key_length_bytes": 32
   },
   "auth": {
     "access_token_ttl_seconds": 900,

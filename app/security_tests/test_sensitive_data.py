@@ -74,7 +74,13 @@ def test_totp_secret_encrypted_in_db(client, session):
 def test_access_token_contains_no_sensitive_fields(client, session):
     _, tok, _ = auth_helper(client, session, "frank")
     claims = jwt.decode(tok, options={"verify_signature": False})
-    sensitive = {"password", "srp_verifier", "srp_salt", "totp_secret", "totp_secret_enc"}
+    sensitive = {
+        "password",
+        "srp_verifier",
+        "srp_salt",
+        "totp_secret",
+        "totp_secret_enc",
+    }
     assert not sensitive.intersection(claims.keys())
 
 
@@ -82,5 +88,5 @@ def test_error_response_contains_no_stack_trace(client):
     # Send a request that triggers a 422 validation error
     resp = client.post("/api/v1/auth/register", json={"username": "x" * 10000})
     assert "traceback" not in resp.text.lower()
-    assert "file \"" not in resp.text.lower()
+    assert 'file "' not in resp.text.lower()
     assert "sqlalchemy" not in resp.text.lower()

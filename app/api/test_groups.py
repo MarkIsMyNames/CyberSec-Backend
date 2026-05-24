@@ -12,11 +12,11 @@ def test_list_groups(client, session):
         json={"name": "g1"},
         headers={"Authorization": "Bearer %s" % alice_tok},
     ).json()
-    g2 = client.post(
+    client.post(
         "/api/v1/groups/",
         json={"name": "g2"},
         headers={"Authorization": "Bearer %s" % alice_tok},
-    ).json()
+    )
     client.post(
         "/api/v1/groups/%d/members" % g1["id"],
         json={"user_id": bob.id, "skdm_ciphertext": "AAAA"},
@@ -624,12 +624,12 @@ def test_get_epoch_returns_current_epoch(client, session):
 
 
 def test_unauthenticated_group_requests_rejected(client, session):
-    assert client.get("/api/v1/groups/").status_code == HTTPStatus.FORBIDDEN
-    assert client.post("/api/v1/groups/", json={"name": "g"}).status_code == HTTPStatus.FORBIDDEN
-    assert client.get("/api/v1/groups/1").status_code == HTTPStatus.FORBIDDEN
-    assert client.post("/api/v1/groups/1/members", json={}).status_code == HTTPStatus.FORBIDDEN
-    assert client.get("/api/v1/groups/1/messages").status_code == HTTPStatus.FORBIDDEN
-    assert client.get("/api/v1/groups/1/skdm").status_code == HTTPStatus.FORBIDDEN
+    assert client.get("/api/v1/groups/").status_code == HTTPStatus.UNAUTHORIZED
+    assert client.post("/api/v1/groups/", json={"name": "g"}).status_code == HTTPStatus.UNAUTHORIZED
+    assert client.get("/api/v1/groups/1").status_code == HTTPStatus.UNAUTHORIZED
+    assert client.post("/api/v1/groups/1/members", json={}).status_code == HTTPStatus.UNAUTHORIZED
+    assert client.get("/api/v1/groups/1/messages").status_code == HTTPStatus.UNAUTHORIZED
+    assert client.get("/api/v1/groups/1/skdm").status_code == HTTPStatus.UNAUTHORIZED
 
 
 def test_non_member_cannot_access_group_info(client, session):

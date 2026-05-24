@@ -13,7 +13,10 @@ def test_srp_init_sql_injection_in_username(client):
         "/api/v1/auth/srp-init",
         json={"username": "victim' --", "client_public": client_public.hex()},
     )
-    assert resp.status_code in (HTTPStatus.UNAUTHORIZED, HTTPStatus.UNPROCESSABLE_ENTITY)
+    assert resp.status_code in (
+        HTTPStatus.UNAUTHORIZED,
+        HTTPStatus.UNPROCESSABLE_ENTITY,
+    )
 
 
 def test_group_name_with_sql_injection_stored_safely(client, session):

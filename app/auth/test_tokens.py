@@ -92,7 +92,7 @@ def test_issue_and_verify_access_token(test_env):
     assert claims["scope"] == "full"
 
 
-def test_issue_and_verify_preauth_token(test_env):
+def test_issue_and_verify_preauth_token(test_env, db):
     token = issue_preauth_token(user_id=2)
     claims = verify_token(token, expected_scope="totp_only")
     assert claims["sub"] == "2"

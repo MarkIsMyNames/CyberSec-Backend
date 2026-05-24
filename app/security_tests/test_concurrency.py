@@ -131,7 +131,9 @@ def test_concurrent_remove_member_epoch_increments_correctly(concurrent_db):
     with Session(concurrent_db, expire_on_commit=False) as check_sess:
         fetched = SQLGroupRepository(check_sess).get_group(group.id)
     assert fetched is not None
-    assert fetched.epoch == 5, "each removal must increment epoch once: got %d" % fetched.epoch
+    assert fetched.epoch == 5, (
+        "each removal must increment epoch once: got %d" % fetched.epoch
+    )
 
 
 def test_concurrent_store_message_respects_inbox_limit(concurrent_db, monkeypatch):
@@ -154,7 +156,9 @@ def test_concurrent_store_message_respects_inbox_limit(concurrent_db, monkeypatc
         barrier.wait()
         try:
             with Session(concurrent_db, expire_on_commit=False) as sess:
-                SQLMessageRepository(sess).store_message(sender, recipient, b"ct", b"hdr")
+                SQLMessageRepository(sess).store_message(
+                    sender, recipient, b"ct", b"hdr"
+                )
             with lock:
                 successes.append(True)
         except OverflowError:
@@ -301,9 +305,11 @@ def test_concurrent_remove_member_same_target_no_deadlock(concurrent_db):
         fetched = repo.get_group(group.id)
     assert bob not in members
     assert fetched is not None
-    assert fetched.epoch == initial_epoch + 1, (
-        "epoch should increment exactly once: expected %d got %d"
-        % (initial_epoch + 1, fetched.epoch)
+    assert (
+        fetched.epoch == initial_epoch + 1
+    ), "epoch should increment exactly once: expected %d got %d" % (
+        initial_epoch + 1,
+        fetched.epoch,
     )
 
 
@@ -312,7 +318,9 @@ def test_concurrent_receipt_no_double_delete(concurrent_db):
         users = SQLUserRepository(setup_sess)
         alice = users.create_user("alice_r1", "s", "v", b"t")
         bob = users.create_user("bob_r1", "s", "v", b"t")
-        msg_id = SQLMessageRepository(setup_sess).store_message(alice, bob, b"ct", b"hdr")
+        msg_id = SQLMessageRepository(setup_sess).store_message(
+            alice, bob, b"ct", b"hdr"
+        )
 
     barrier = threading.Barrier(2)
     errors: list[Exception] = []
@@ -337,9 +345,7 @@ def test_concurrent_receipt_no_double_delete(concurrent_db):
     with Session(concurrent_db, expire_on_commit=False) as check_sess:
         count = (
             check_sess.scalar(
-                select(func.count())
-                .select_from(Message)
-                .where(Message.id == msg_id)
+                select(func.count()).select_from(Message).where(Message.id == msg_id)
             )
             or 0
         )
@@ -409,7 +415,9 @@ def test_concurrent_refresh_token_replay_only_one_succeeds(concurrent_db):
         f1.result(timeout=10)
         f2.result(timeout=10)
 
-    assert successes.count(True) == 1, "only one replay attempt should succeed: %s" % successes
+    assert successes.count(True) == 1, (
+        "only one replay attempt should succeed: %s" % successes
+    )
     with Session(concurrent_db, expire_on_commit=False) as check_sess:
         count = (
             check_sess.scalar(
@@ -515,7 +523,9 @@ def test_concurrent_group_messages_from_different_senders(concurrent_db):
         barrier.wait()
         try:
             with Session(concurrent_db, expire_on_commit=False) as sess:
-                SQLGroupRepository(sess).store_group_message(group.id, sender_id, 0, b"ct")
+                SQLGroupRepository(sess).store_group_message(
+                    group.id, sender_id, 0, b"ct"
+                )
         except SQLAlchemyError as exc:
             with lock:
                 errors.append(exc)

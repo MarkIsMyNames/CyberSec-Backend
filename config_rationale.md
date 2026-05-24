@@ -43,6 +43,11 @@
 |-----|-------|-----------|
 | `max_upload_bytes` | `102400` | 100 KiB hard cap at the HTTP layer; matches `max_message_bytes` — no legitimate request body should exceed this |
 | `tls_min_version` | `TLSv1.3` | TLS 1.3 removes weak cipher suites and legacy negotiation; 1.2 and below are deprecated |
+| `time_for_enforced_http` | `63072000` | 2-year HSTS pin; long enough to cover typical browser cache lifetimes, short enough to recover from a misconfiguration without a multi-year lockout |
+| `block_framing` | `DENY` | `X-Frame-Options` value; prevents the app being embedded in any iframe, blocking clickjacking |
+| `block_content_sniffing` | `nosniff` | `X-Content-Type-Options` value; stops browsers guessing MIME types, preventing content-sniffing attacks |
+| `allowed_content_sources` | `default-src 'none'` | `Content-Security-Policy` value; blocks all resource loading — appropriate for a pure API with no frontend |
+| `referrer_exposure` | `no-referrer` | `Referrer-Policy` value; suppresses the `Referer` header on outgoing requests, preventing URL leakage |
 | `db_path` | `securemsg.db` | Relative path resolved from project root; overridden per-environment via config if needed |
 | `db_foreign_keys` | `true` | SQLite disables foreign key enforcement by default; must be enabled per-connection via `PRAGMA foreign_keys = ON` |
 

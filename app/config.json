@@ -51,7 +51,12 @@
     "tls_min_version": "TLSv1.3",
     "cors_origins": [],
     "db_path": "securemsg.db",
-    "db_url": "sqlite://"
+    "db_url": "sqlite://",
+    "time_for_enforced_http": 63072000,
+    "block_framing": "DENY",
+    "block_content_sniffing": "nosniff",
+    "allowed_content_sources": "default-src 'none'",
+    "referrer_exposure": "no-referrer"
   },
   "logging": {
     "log_file": "securemsg.log",

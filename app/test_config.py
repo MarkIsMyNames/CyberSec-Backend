@@ -13,6 +13,7 @@ POSITIVE_INT_KEYS = [
     ("crypto", "symmetric_key_length_bytes"),
     ("auth", "totp_window"),
     ("server", "max_upload_bytes"),
+    ("server", "time_for_enforced_http"),
     ("logging", "log_max_bytes"),
     ("logging", "log_backup_count"),
 ]

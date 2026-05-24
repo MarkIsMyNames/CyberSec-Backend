@@ -106,7 +106,7 @@ def verify_token(token: str, expected_scope: str) -> TokenClaims:
         )
         raise InvalidTokenError("wrong scope")
 
-    if "jti" in claims and expected_scope == "refresh":
+    if "jti" in claims and expected_scope in ("refresh", "totp_only"):
         jti_hash = hashlib.sha256(claims["jti"].encode()).digest()
         with open_session() as session:
             repo = SQLUserRepository(session)

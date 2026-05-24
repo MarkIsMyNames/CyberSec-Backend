@@ -84,8 +84,6 @@ def test_token_signed_with_wrong_key_rejected(client, session):
 
 
 def test_preauth_token_single_use(client, session):
-    from app.auth.tokens import issue_preauth_token
-
     frank, _, _ = auth_helper(client, session, "frank")
     tok = issue_preauth_token(user_id=frank.id)
     client.post(

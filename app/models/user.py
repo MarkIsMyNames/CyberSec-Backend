@@ -1,4 +1,4 @@
-from sqlalchemy import LargeBinary, String
+from sqlalchemy import BigInteger, LargeBinary, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
@@ -8,7 +8,7 @@ class RefreshTokenBlocklist(Base):
     __tablename__ = "refresh_token_blocklist"
 
     jti_hash: Mapped[bytes] = mapped_column(LargeBinary, primary_key=True)
-    expires_at: Mapped[int] = mapped_column(nullable=False, index=True)
+    expires_at: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
 
 
 class User(Base):

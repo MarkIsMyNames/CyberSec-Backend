@@ -60,5 +60,3 @@ def decrypt(data: bytes) -> bytes:
         raise
     logger.debug("Secret decrypted")
     return plaintext
-
-

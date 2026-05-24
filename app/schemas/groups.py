@@ -17,7 +17,10 @@ class RemoveMemberRequest(BaseModel):
 
 class CreateGroupRequest(BaseModel):
     name: str = GroupName
-    initial_members: list[int] = []
+    initial_members: dict[int, Base64] = {}
+
+    def initial_members_bytes(self) -> dict[int, bytes]:
+        return {uid: base64.b64decode(ct) for uid, ct in self.initial_members.items()}
 
 
 class CreateGroupResponse(BaseModel):

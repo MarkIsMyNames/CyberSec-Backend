@@ -16,15 +16,22 @@ class SQLGroupRepository:
     def __init__(self, session: Session) -> None:
         self._session = session
 
-    def create_group(self, name: str, creator_id: int) -> Group:
+    def create_group(self, name: str, creator_id: int, initial_members: dict[int, bytes] | None = None) -> Group:
         group = Group(name=name, creator_id=creator_id, epoch=0)
         self._session.add(group)
         self._session.flush()
         self._session.add(GroupMember(group_id=group.id, user_id=creator_id))
+        if initial_members:
+            self._session.add_all(
+                GroupMember(group_id=group.id, user_id=uid) for uid in initial_members
+            )
+            self._session.flush()
+            self._store_skdms(group.id, initial_members)
         self._session.commit()
         self._session.refresh(group)
         logger.info(
-            "created group id=%d name=%s creator_id=%d", group.id, name, creator_id
+            "created group id=%d name=%s creator_id=%d initial_members=%d",
+            group.id, name, creator_id, len(initial_members) if initial_members else 0,
         )
         return group
 
@@ -39,7 +46,7 @@ class SQLGroupRepository:
             select(Group.creator_id).where(Group.id == group_id)
         ) == user_id
 
-    def add_member(self, group_id: int, requester_id: int, user_id: int) -> None:
+    def add_member(self, group_id: int, requester_id: int, user_id: int, skdm_ciphertext: bytes) -> None:
         if not self.is_creator(group_id, requester_id):
             logger.warning(
                 "unauthorised add_member group_id=%d requester_id=%d",
@@ -52,6 +59,7 @@ class SQLGroupRepository:
             .values(group_id=group_id, user_id=user_id)
             .on_conflict_do_nothing()
         )
+        self._store_skdms(group_id, {user_id: skdm_ciphertext})
         self._session.commit()
         logger.info("added member group_id=%d user_id=%d", group_id, user_id)
 
@@ -86,6 +94,7 @@ class SQLGroupRepository:
         )
         if current_creator_id is None:
             self._session.commit()
+            logger.info("Group %d no longer exists", group_id)
             return
 
         if current_creator_id == user_id:
@@ -193,7 +202,7 @@ class SQLGroupRepository:
         self._session.flush()
         self._session.execute(
             insert(GroupMessageReceipt).from_select(
-                ["message_id", "user_id"],
+                [GroupMessageReceipt.message_id, GroupMessageReceipt.user_id],
                 select(literal(msg.id), GroupMember.user_id)
                 .where(GroupMember.group_id == group_id, GroupMember.user_id != sender_id),
             )

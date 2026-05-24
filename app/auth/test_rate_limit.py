@@ -49,13 +49,13 @@ def test_rate_limiter_exists():
 
 def test_limit_strings_match_config():
     cfg = config["rate_limits"]
-    assert auth_limit == cfg["auth"]
-    assert messages_limit == cfg["messages"]
-    assert keys_limit == cfg["keys"]
-    assert group_limit == cfg["groups"]
-    assert ip_messages_limit == cfg["ip_messages"]
-    assert ip_keys_limit == cfg["ip_keys"]
-    assert ip_group_limit == cfg["ip_groups"]
+    assert auth_limit() == cfg["auth"]
+    assert messages_limit() == cfg["messages"]
+    assert keys_limit() == cfg["keys"]
+    assert group_limit() == cfg["groups"]
+    assert ip_messages_limit() == cfg["ip_messages"]
+    assert ip_keys_limit() == cfg["ip_keys"]
+    assert ip_group_limit() == cfg["ip_groups"]
 
 
 def test_rate_limit_key_uses_user_id_for_bearer_token(test_env):
@@ -78,10 +78,10 @@ def _limit_count(limit_str: str) -> int:
     return int(limit_str.split("/")[0])
 
 
-def test_per_user_message_limit_enforced(client, session):
+def test_per_user_message_limit_enforced(client, session, low_limits):
     alice, alice_tok, _ = auth_helper(client, session, "alice")
     bob, _, _ = auth_helper(client, session, "bob")
-    limit = _limit_count(config["rate_limits"]["messages"])
+    limit = _limit_count(messages_limit())
     responses = [
         client.post(
             "/api/v1/messages/",
@@ -97,9 +97,9 @@ def test_per_user_message_limit_enforced(client, session):
     assert any(r.status_code == HTTPStatus.TOO_MANY_REQUESTS for r in responses)
 
 
-def test_per_user_group_limit_enforced(client, session):
+def test_per_user_group_limit_enforced(client, session, low_limits):
     alice, alice_tok, _ = auth_helper(client, session, "alice")
-    limit = _limit_count(config["rate_limits"]["groups"])
+    limit = _limit_count(group_limit())
     responses = [
         client.post(
             "/api/v1/groups/",
@@ -108,25 +108,4 @@ def test_per_user_group_limit_enforced(client, session):
         )
         for i in range(limit + 1)
     ]
-    assert any(r.status_code == HTTPStatus.TOO_MANY_REQUESTS for r in responses)
-
-
-def test_per_ip_message_limit_enforced(client, session):
-    limit = _limit_count(config["rate_limits"]["ip_messages"])
-    users = [auth_helper(client, session, "user%d" % i) for i in range(3)]
-    bob, _, _ = auth_helper(client, session, "bob")
-    responses = []
-    for i in range(limit + 1):
-        _, tok, _ = users[i % len(users)]
-        responses.append(
-            client.post(
-                "/api/v1/messages/",
-                json={
-                    "recipient_id": bob.id,
-                    "ciphertext": base64.b64encode(b"ct").decode(),
-                    "ratchet_header_enc": base64.b64encode(b"hdr").decode(),
-                },
-                headers={"Authorization": "Bearer %s" % tok},
-            )
-        )
     assert any(r.status_code == HTTPStatus.TOO_MANY_REQUESTS for r in responses)

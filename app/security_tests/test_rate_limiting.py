@@ -12,7 +12,11 @@ def _register(client, username: str, password: str = "correcthorsebattery") -> N
     )
     client.post(
         "/api/v1/auth/register",
-        json={"username": username, "srp_salt": salt.hex(), "srp_verifier": verifier.hex()},
+        json={
+            "username": username,
+            "srp_salt": salt.hex(),
+            "srp_verifier": verifier.hex(),
+        },
     )
 
 

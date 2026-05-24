@@ -1,0 +1,62 @@
+{
+  "crypto": {
+    "max_message_bytes": 102400,
+    "nonce_length_bytes": 12,
+    "hkdf_info_strings": {
+      "encryption": "SecureMsg-v1-encryption"
+    },
+    "encryption_key_length_bytes": 32
+  },
+  "auth": {
+    "access_token_ttl_seconds": 900,
+    "refresh_token_ttl_seconds": 604800,
+    "preauth_token_ttl_seconds": 60,
+    "srp_session_ttl_seconds": 120,
+    "secret_token_bytes": 32,
+    "totp_window": 1,
+    "jwt_algorithm": "HS256"
+  },
+  "rate_limits": {
+    "auth": "10/minute",
+    "refresh": "20/minute",
+    "logout": "5/minute",
+    "messages": "30/minute",
+    "keys": "30/minute",
+    "groups": "15/minute",
+    "ip_messages": "150/minute",
+    "ip_keys": "150/minute",
+    "ip_groups": "75/minute"
+  },
+  "messaging": {
+    "inbox_max_messages": 50000,
+    "page_default": 50,
+    "page_max": 100
+  },
+  "validation": {
+    "username_min_length": 3,
+    "username_max_length": 32,
+    "alnum_re": "^[a-zA-Z0-9]+$",
+    "hex_re": "^[0-9a-fA-F]+$",
+    "group_name_min_length": 1,
+    "group_name_max_length": 64,
+    "totp_code_pattern": "^[0-9]{6}$"
+  },
+  "server": {
+    "app_name": "SecureMsg",
+    "db_pool_size": 10,
+    "db_max_overflow": 20,
+    "time_for_enforced_http": 63072000,
+    "block_framing": "DENY",
+    "block_content_sniffing": "nosniff",
+    "allowed_content_sources": "default-src 'none'",
+    "referrer_exposure": "no-referrer"
+  },
+  "logging": {
+    "log_file": "securemsg.log",
+    "log_level": "DEBUG",
+    "log_max_bytes": 10485760,
+    "log_backup_count": 5,
+    "log_format": "%(asctime)s %(levelname)s %(name)s: %(message)s",
+    "logger_name": "securemsg"
+  }
+}

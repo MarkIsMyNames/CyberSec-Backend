@@ -10,18 +10,30 @@ from app.logger import logger
 def _rate_limit_key(request: Request) -> str:
     auth = request.headers.get("Authorization", "")
     if auth.startswith("Bearer "):
-        token = auth[len("Bearer "):]
+        token = auth[len("Bearer ") :]
         try:
             claims = jwt.decode(token, options={"verify_signature": False})
             sub = claims.get("sub")
             if sub:
                 logger.debug("rate limit key: user=%s path=%s", sub, request.url.path)
                 return "user:%s" % sub
-            logger.warning("rate limit key: bearer token missing sub claim path=%s ip=%s", request.url.path, get_remote_address(request))
+            logger.warning(
+                "rate limit key: bearer token missing sub claim path=%s ip=%s",
+                request.url.path,
+                get_remote_address(request),
+            )
         except jwt.DecodeError:
-            logger.warning("rate limit key: malformed bearer token ip=%s path=%s", get_remote_address(request), request.url.path)
+            logger.warning(
+                "rate limit key: malformed bearer token ip=%s path=%s",
+                get_remote_address(request),
+                request.url.path,
+            )
     else:
-        logger.debug("rate limit key: no bearer token ip=%s path=%s", get_remote_address(request), request.url.path)
+        logger.debug(
+            "rate limit key: no bearer token ip=%s path=%s",
+            get_remote_address(request),
+            request.url.path,
+        )
     return get_remote_address(request)
 
 

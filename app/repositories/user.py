@@ -14,7 +14,12 @@ class SQLUserRepository:
     ) -> int:
         user_id: int = self._session.execute(
             insert(User)
-            .values(username=username, srp_salt=srp_salt, srp_verifier=srp_verifier, totp_secret_enc=totp_secret_enc)
+            .values(
+                username=username,
+                srp_salt=srp_salt,
+                srp_verifier=srp_verifier,
+                totp_secret_enc=totp_secret_enc,
+            )
             .returning(User.id)
         ).scalar_one()
         self._session.commit()
@@ -41,9 +46,14 @@ class SQLUserRepository:
         logger.info("refresh token blocked expires_at=%d", expires_at)
 
     def is_refresh_token_blocked(self, jti_hash: bytes) -> bool:
-        blocked = self._session.scalar(
-            select(RefreshTokenBlocklist).where(RefreshTokenBlocklist.jti_hash == jti_hash)
-        ) is not None
+        blocked = (
+            self._session.scalar(
+                select(RefreshTokenBlocklist).where(
+                    RefreshTokenBlocklist.jti_hash == jti_hash
+                )
+            )
+            is not None
+        )
         if blocked:
             logger.warning("blocked refresh token presented")
         return blocked

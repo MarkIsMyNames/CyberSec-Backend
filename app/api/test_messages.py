@@ -114,11 +114,14 @@ def test_send_message_to_self_rejected(client, session):
     assert resp.status_code == HTTPStatus.FORBIDDEN
 
 
-
 def test_unauthenticated_requests_rejected(client, session):
     assert client.get("/api/v1/messages/").status_code == HTTPStatus.UNAUTHORIZED
-    assert client.post("/api/v1/messages/", json={}).status_code == HTTPStatus.UNAUTHORIZED
-    assert client.post("/api/v1/messages/1/receipt").status_code == HTTPStatus.UNAUTHORIZED
+    assert (
+        client.post("/api/v1/messages/", json={}).status_code == HTTPStatus.UNAUTHORIZED
+    )
+    assert (
+        client.post("/api/v1/messages/1/receipt").status_code == HTTPStatus.UNAUTHORIZED
+    )
     assert client.delete("/api/v1/messages/1").status_code == HTTPStatus.UNAUTHORIZED
 
 
@@ -151,8 +154,16 @@ def test_inbox_limit_enforced(client, session, monkeypatch):
         "ratchet_header_enc": base64.b64encode(b"hdr").decode(),
     }
     for _ in range(3):
-        client.post("/api/v1/messages/", json=payload, headers={"Authorization": "Bearer %s" % alice_tok})
-    resp = client.post("/api/v1/messages/", json=payload, headers={"Authorization": "Bearer %s" % alice_tok})
+        client.post(
+            "/api/v1/messages/",
+            json=payload,
+            headers={"Authorization": "Bearer %s" % alice_tok},
+        )
+    resp = client.post(
+        "/api/v1/messages/",
+        json=payload,
+        headers={"Authorization": "Bearer %s" % alice_tok},
+    )
     assert resp.status_code == HTTPStatus.TOO_MANY_REQUESTS
 
 
@@ -165,7 +176,11 @@ def test_list_messages_pagination(client, session):
         "ratchet_header_enc": base64.b64encode(b"hdr").decode(),
     }
     for _ in range(3):
-        client.post("/api/v1/messages/", json=payload, headers={"Authorization": "Bearer %s" % alice_tok})
+        client.post(
+            "/api/v1/messages/",
+            json=payload,
+            headers={"Authorization": "Bearer %s" % alice_tok},
+        )
     page1 = client.get(
         "/api/v1/messages/",
         params={"limit": 2, "offset": 0},

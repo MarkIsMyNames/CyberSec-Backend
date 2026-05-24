@@ -387,7 +387,10 @@ def test_add_member_with_skdm_delivers_to_new_member(client, session):
     ).json()
     client.post(
         "/api/v1/groups/%d/members" % group["id"],
-        json={"user_id": bob.id, "skdm_ciphertext": base64.b64encode(b"alice_sk_for_bob").decode()},
+        json={
+            "user_id": bob.id,
+            "skdm_ciphertext": base64.b64encode(b"alice_sk_for_bob").decode(),
+        },
         headers={"Authorization": "Bearer %s" % alice_tok},
     )
     resp = client.get(
@@ -396,7 +399,10 @@ def test_add_member_with_skdm_delivers_to_new_member(client, session):
     )
     assert resp.status_code == HTTPStatus.OK
     assert len(resp.json()["skdm_ciphertexts"]) == 1
-    assert resp.json()["skdm_ciphertexts"][0]["ciphertext"] == base64.b64encode(b"alice_sk_for_bob").decode()
+    assert (
+        resp.json()["skdm_ciphertexts"][0]["ciphertext"]
+        == base64.b64encode(b"alice_sk_for_bob").decode()
+    )
     assert resp.json()["skdm_ciphertexts"][0]["epoch"] == 1
 
 
@@ -625,10 +631,18 @@ def test_get_epoch_returns_current_epoch(client, session):
 
 def test_unauthenticated_group_requests_rejected(client, session):
     assert client.get("/api/v1/groups/").status_code == HTTPStatus.UNAUTHORIZED
-    assert client.post("/api/v1/groups/", json={"name": "g"}).status_code == HTTPStatus.UNAUTHORIZED
+    assert (
+        client.post("/api/v1/groups/", json={"name": "g"}).status_code
+        == HTTPStatus.UNAUTHORIZED
+    )
     assert client.get("/api/v1/groups/1").status_code == HTTPStatus.UNAUTHORIZED
-    assert client.post("/api/v1/groups/1/members", json={}).status_code == HTTPStatus.UNAUTHORIZED
-    assert client.get("/api/v1/groups/1/messages").status_code == HTTPStatus.UNAUTHORIZED
+    assert (
+        client.post("/api/v1/groups/1/members", json={}).status_code
+        == HTTPStatus.UNAUTHORIZED
+    )
+    assert (
+        client.get("/api/v1/groups/1/messages").status_code == HTTPStatus.UNAUTHORIZED
+    )
     assert client.get("/api/v1/groups/1/skdm").status_code == HTTPStatus.UNAUTHORIZED
 
 
@@ -967,7 +981,10 @@ def test_group_message_receipt_removes_message_only_when_all_received(client, se
         headers={"Authorization": "Bearer %s" % carol_tok},
     )
     # all receipted — message gone for everyone
-    assert client.get(
-        "/api/v1/groups/%d/messages" % group["id"],
-        headers={"Authorization": "Bearer %s" % carol_tok},
-    ).json() == []
+    assert (
+        client.get(
+            "/api/v1/groups/%d/messages" % group["id"],
+            headers={"Authorization": "Bearer %s" % carol_tok},
+        ).json()
+        == []
+    )

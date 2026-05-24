@@ -10,7 +10,10 @@ from app.schemas.common import Base64
 def _validate_ciphertext_size(value: str) -> str:
     decoded_len = len(base64.b64decode(value))
     if decoded_len > config["crypto"]["max_message_bytes"]:
-        raise ValueError("ciphertext exceeds maximum size of %d bytes" % config["crypto"]["max_message_bytes"])
+        raise ValueError(
+            "ciphertext exceeds maximum size of %d bytes"
+            % config["crypto"]["max_message_bytes"]
+        )
     return value
 
 

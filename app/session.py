@@ -34,12 +34,24 @@ def _make_engine() -> Engine:
 
     def creator() -> Connection:
         conn = sqlcipher.connect(str(db_path), check_same_thread=False)
-        conn.execute("PRAGMA key = \"x'%s'\"" % key)    # must be first — unlocks the encrypted database
-        conn.execute("PRAGMA foreign_keys = ON")        # enforce FK constraints (SQLite disables them by default)
-        conn.execute("PRAGMA journal_mode = WAL")       # readers don't block writers; writers don't block readers
-        conn.execute("PRAGMA busy_timeout = 5000")      # retry writes for up to 5s before raising SQLITE_BUSY
-        conn.execute("PRAGMA synchronous = NORMAL")     # fsync on WAL checkpoints only — safe with WAL, faster than FULL
-        conn.execute("PRAGMA cache_size = -64000")      # 64 MB page cache per connection (negative = kibibytes)
+        conn.execute(
+            "PRAGMA key = \"x'%s'\"" % key
+        )  # must be first — unlocks the encrypted database
+        conn.execute(
+            "PRAGMA foreign_keys = ON"
+        )  # enforce FK constraints (SQLite disables them by default)
+        conn.execute(
+            "PRAGMA journal_mode = WAL"
+        )  # readers don't block writers; writers don't block readers
+        conn.execute(
+            "PRAGMA busy_timeout = 5000"
+        )  # retry writes for up to 5s before raising SQLITE_BUSY
+        conn.execute(
+            "PRAGMA synchronous = NORMAL"
+        )  # fsync on WAL checkpoints only — safe with WAL, faster than FULL
+        conn.execute(
+            "PRAGMA cache_size = -64000"
+        )  # 64 MB page cache per connection (negative = kibibytes)
         return conn
 
     return create_engine(cfg["db_url"], creator=creator, poolclass=NullPool)

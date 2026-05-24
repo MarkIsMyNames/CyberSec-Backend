@@ -4,7 +4,14 @@ from http import HTTPStatus
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response
 
 from app.api.deps import get_current_user, require_group_member
-from app.auth.rate_limit import GROUP_LIMIT, IP_GROUP_LIMIT, IP_MESSAGES_LIMIT, MESSAGES_LIMIT, ip_limiter, limiter
+from app.auth.rate_limit import (
+    GROUP_LIMIT,
+    IP_GROUP_LIMIT,
+    IP_MESSAGES_LIMIT,
+    MESSAGES_LIMIT,
+    ip_limiter,
+    limiter,
+)
 from app.dependencies import repo_dep
 from app.logger import logger
 from app.models.group import Group
@@ -37,10 +44,17 @@ async def list_groups(
     group_repo: SQLGroupRepository = Depends(repo_dep(SQLGroupRepository)),
 ) -> GroupListResponse:
     groups: list[Group] = group_repo.get_groups_for_user(current_user.id)
-    members_by_group: dict[int, list[int]] = {g.id: group_repo.get_members(g.id) for g in groups}
+    members_by_group: dict[int, list[int]] = {
+        g.id: group_repo.get_members(g.id) for g in groups
+    }
     logger.debug("list groups user_id=%d count=%d", current_user.id, len(groups))
     return GroupListResponse(
-        groups=[GroupResponse(id=g.id, name=g.name, members=members_by_group[g.id], epoch=g.epoch) for g in groups]
+        groups=[
+            GroupResponse(
+                id=g.id, name=g.name, members=members_by_group[g.id], epoch=g.epoch
+            )
+            for g in groups
+        ]
     )
 
 
@@ -53,7 +67,11 @@ async def create_group(
     current_user: User = Depends(get_current_user),
     group_repo: SQLGroupRepository = Depends(repo_dep(SQLGroupRepository)),
 ) -> CreateGroupResponse:
-    group = group_repo.create_group(body.name, creator_id=current_user.id, initial_members=body.initial_members_bytes() or None)
+    group = group_repo.create_group(
+        body.name,
+        creator_id=current_user.id,
+        initial_members=body.initial_members_bytes() or None,
+    )
 
     logger.info(
         "group created group_id=%d name=%s creator_id=%d initial_members=%d",
@@ -76,7 +94,9 @@ async def get_group_info(
     group_repo: SQLGroupRepository = Depends(repo_dep(SQLGroupRepository)),
 ) -> GroupResponse:
     members: list[int] = group_repo.get_members(group_id)
-    return GroupResponse(id=group_id, name=group.name, members=members, epoch=group.epoch)
+    return GroupResponse(
+        id=group_id, name=group.name, members=members, epoch=group.epoch
+    )
 
 
 @router.post("/{group_id}/members", status_code=HTTPStatus.NO_CONTENT)
@@ -90,7 +110,9 @@ async def add_member(
     group_repo: SQLGroupRepository = Depends(repo_dep(SQLGroupRepository)),
 ) -> Response:
     try:
-        group_repo.add_member(group.id, current_user.id, body.user_id, body.skdm_ciphertext_bytes())
+        group_repo.add_member(
+            group.id, current_user.id, body.user_id, body.skdm_ciphertext_bytes()
+        )
     except PermissionError as exc:
         logger.warning(
             "add member failed: not creator group_id=%d requester_id=%d target_id=%d",
@@ -115,7 +137,9 @@ async def remove_member(
     group_repo: SQLGroupRepository = Depends(repo_dep(SQLGroupRepository)),
 ) -> Response:
     try:
-        group_repo.remove_member(group.id, current_user.id, user_id, body.skdm_ciphertexts_bytes())
+        group_repo.remove_member(
+            group.id, current_user.id, user_id, body.skdm_ciphertexts_bytes()
+        )
     except PermissionError as exc:
         logger.warning(
             "remove member failed: not creator group_id=%d requester_id=%d target_id=%d",
@@ -149,7 +173,9 @@ async def send_group_message(
     current_user: User = Depends(get_current_user),
     group_repo: SQLGroupRepository = Depends(repo_dep(SQLGroupRepository)),
 ) -> SendGroupMessageResponse:
-    msg = group_repo.store_group_message(group.id, current_user.id, body.epoch, body.ciphertext_bytes())
+    msg = group_repo.store_group_message(
+        group.id, current_user.id, body.epoch, body.ciphertext_bytes()
+    )
     logger.info(
         "group message sent message_id=%d group_id=%d sender_id=%d",
         msg.id,
@@ -200,7 +226,12 @@ async def revoke_group_message(
         raise HTTPException(
             status_code=HTTPStatus.FORBIDDEN, detail="Cannot revoke this message"
         )
-    logger.info("group message revoked message_id=%d group_id=%d user_id=%d", msg_id, group.id, current_user.id)
+    logger.info(
+        "group message revoked message_id=%d group_id=%d user_id=%d",
+        msg_id,
+        group.id,
+        current_user.id,
+    )
     return Response(status_code=HTTPStatus.NO_CONTENT)
 
 
@@ -215,7 +246,12 @@ async def record_group_message_receipt(
     group_repo: SQLGroupRepository = Depends(repo_dep(SQLGroupRepository)),
 ) -> Response:
     group_repo.record_group_receipt(msg_id, current_user.id)
-    logger.info("group receipt recorded message_id=%d group_id=%d user_id=%d", msg_id, group.id, current_user.id)
+    logger.info(
+        "group receipt recorded message_id=%d group_id=%d user_id=%d",
+        msg_id,
+        group.id,
+        current_user.id,
+    )
     return Response(status_code=HTTPStatus.NO_CONTENT)
 
 
@@ -245,7 +281,12 @@ async def pop_skdms(
     group_repo: SQLGroupRepository = Depends(repo_dep(SQLGroupRepository)),
 ) -> SKDMResponse:
     skdms = group_repo.pop_skdms_for_user(current_user.id, group.id)
-    logger.info("popped %d SKDMs group_id=%d user_id=%d", len(skdms), group.id, current_user.id)
+    logger.info(
+        "popped %d SKDMs group_id=%d user_id=%d", len(skdms), group.id, current_user.id
+    )
     return SKDMResponse(
-        skdm_ciphertexts=[SKDMEntry(epoch=ep, ciphertext=base64.b64encode(ct).decode()) for ep, ct in skdms]
+        skdm_ciphertexts=[
+            SKDMEntry(epoch=ep, ciphertext=base64.b64encode(ct).decode())
+            for ep, ct in skdms
+        ]
     )

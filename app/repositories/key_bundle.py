@@ -63,7 +63,8 @@ class SQLKeyBundleRepository:
         prekey_pub = self._session.execute(
             delete(OneTimePreKey)
             .where(
-                OneTimePreKey.id == select(OneTimePreKey.id)
+                OneTimePreKey.id
+                == select(OneTimePreKey.id)
                 .where(OneTimePreKey.user_id == user_id)
                 .order_by(OneTimePreKey.id)
                 .limit(1)
@@ -75,9 +76,14 @@ class SQLKeyBundleRepository:
         return bytes(prekey_pub) if prekey_pub is not None else None
 
     def count_one_time_prekeys(self, user_id: int) -> int:
-        count = self._session.scalar(
-            select(func.count()).select_from(OneTimePreKey).where(OneTimePreKey.user_id == user_id)
-        ) or 0
+        count = (
+            self._session.scalar(
+                select(func.count())
+                .select_from(OneTimePreKey)
+                .where(OneTimePreKey.user_id == user_id)
+            )
+            or 0
+        )
         logger.debug("one-time prekey count=%d user_id=%d", count, user_id)
         return count
 
@@ -88,9 +94,9 @@ class SQLKeyBundleRepository:
             .where(User.username == username)
         ).first()
         if row is None:
-            logger.debug("identity_pub lookup by username: not found username=%s", username)
+            logger.debug(
+                "identity_pub lookup by username: not found username=%s", username
+            )
             return None
         logger.debug("identity_pub lookup by username: user_id=%d", row[0])
         return row[0], bytes(row[1])
-
-

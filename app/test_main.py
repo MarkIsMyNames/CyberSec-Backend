@@ -65,7 +65,10 @@ def test_security_header_values(client):
     resp = client.post("/api/v1/auth/register", json={})
     headers = resp.headers
     srv = config["server"]
-    assert headers["strict-transport-security"] == "max-age=%d; includeSubDomains" % srv["time_for_enforced_http"]
+    assert (
+        headers["strict-transport-security"]
+        == "max-age=%d; includeSubDomains" % srv["time_for_enforced_http"]
+    )
     assert headers["x-frame-options"] == srv["block_framing"]
     assert headers["x-content-type-options"] == srv["block_content_sniffing"]
     assert headers["content-security-policy"] == srv["allowed_content_sources"]

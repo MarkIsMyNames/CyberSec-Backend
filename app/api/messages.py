@@ -10,8 +10,11 @@ from app.dependencies import repo_dep
 from app.logger import logger
 from app.models.user import User
 from app.repositories.message import SQLMessageRepository
-from app.schemas.messages import MessageResponse, SendMessageRequest, SendMessageResponse
-
+from app.schemas.messages import (
+    MessageResponse,
+    SendMessageRequest,
+    SendMessageResponse,
+)
 
 router = APIRouter()
 
@@ -26,7 +29,9 @@ async def send_message(
     msg_repo: SQLMessageRepository = Depends(repo_dep(SQLMessageRepository)),
 ) -> SendMessageResponse:
     if body.recipient_id == current_user.id:
-        raise HTTPException(status_code=HTTPStatus.FORBIDDEN, detail="Cannot send a message to yourself")
+        raise HTTPException(
+            status_code=HTTPStatus.FORBIDDEN, detail="Cannot send a message to yourself"
+        )
     try:
         msg_id = msg_repo.store_message(
             sender_id=current_user.id,
@@ -35,11 +40,18 @@ async def send_message(
             ratchet_header_enc=body.ratchet_header_enc_bytes(),
         )
     except OverflowError:
-        logger.warning("send message failed: inbox full recipient_id=%d", body.recipient_id)
+        logger.warning(
+            "send message failed: inbox full recipient_id=%d", body.recipient_id
+        )
         raise HTTPException(
             status_code=HTTPStatus.TOO_MANY_REQUESTS, detail="Recipient inbox is full"
         )
-    logger.info("message sent message_id=%d sender_id=%d recipient_id=%d", msg_id, current_user.id, body.recipient_id)
+    logger.info(
+        "message sent message_id=%d sender_id=%d recipient_id=%d",
+        msg_id,
+        current_user.id,
+        body.recipient_id,
+    )
     return SendMessageResponse(id=msg_id)
 
 
@@ -50,7 +62,11 @@ async def list_messages(
     request: Request,
     current_user: User = Depends(get_current_user),
     msg_repo: SQLMessageRepository = Depends(repo_dep(SQLMessageRepository)),
-    limit: int = Query(default=config["messaging"]["page_default"], ge=1, le=config["messaging"]["page_max"]),
+    limit: int = Query(
+        default=config["messaging"]["page_default"],
+        ge=1,
+        le=config["messaging"]["page_max"],
+    ),
     offset: int = Query(default=0, ge=0),
 ) -> list[MessageResponse]:
     msgs = msg_repo.get_messages_for_user(current_user.id, limit=limit, offset=offset)
@@ -83,7 +99,9 @@ async def mark_receipt(
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND, detail="Message not found"
         )
-    logger.debug("receipt recorded message_id=%d user_id=%d", message_id, current_user.id)
+    logger.debug(
+        "receipt recorded message_id=%d user_id=%d", message_id, current_user.id
+    )
     return Response(status_code=HTTPStatus.NO_CONTENT)
 
 
@@ -97,7 +115,11 @@ async def revoke(
     msg_repo: SQLMessageRepository = Depends(repo_dep(SQLMessageRepository)),
 ) -> Response:
     if not msg_repo.delete_message(message_id, "sender_id", current_user.id):
-        logger.warning("revoke failed: not sender or not found message_id=%d user_id=%d", message_id, current_user.id)
+        logger.warning(
+            "revoke failed: not sender or not found message_id=%d user_id=%d",
+            message_id,
+            current_user.id,
+        )
         raise HTTPException(
             status_code=HTTPStatus.FORBIDDEN, detail="Cannot revoke this message"
         )

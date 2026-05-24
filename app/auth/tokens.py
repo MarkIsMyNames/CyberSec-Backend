@@ -91,9 +91,9 @@ def issue_refresh_token(user_id: int) -> str:
 
 def verify_token(token: str, expected_scope: str) -> TokenClaims:
     try:
-        claims: TokenClaims = parse_claims(jwt.decode(
-            token, _secret(), algorithms=[AUTH_CFG["jwt_algorithm"]]
-        ))
+        claims: TokenClaims = parse_claims(
+            jwt.decode(token, _secret(), algorithms=[AUTH_CFG["jwt_algorithm"]])
+        )
     except jwt.PyJWTError as exc:
         logger.warning("token decode failed: %s", exc)
         raise InvalidTokenError(str(exc))

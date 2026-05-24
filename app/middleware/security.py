@@ -2,7 +2,9 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from app.config import config
 
-TIME_FOR_ENFORCED_HTTP: bytes = ("max-age=%d; includeSubDomains" % config["server"]["time_for_enforced_http"]).encode()
+TIME_FOR_ENFORCED_HTTP: bytes = (
+    "max-age=%d; includeSubDomains" % config["server"]["time_for_enforced_http"]
+).encode()
 BLOCK_FRAMING: bytes = config["server"]["block_framing"].encode()
 BLOCK_CONTENT_SNIFFING: bytes = config["server"]["block_content_sniffing"].encode()
 ALLOWED_CONTENT_SOURCES: bytes = config["server"]["allowed_content_sources"].encode()

@@ -76,7 +76,9 @@ def test_prekey_count(client, session):
         json=_make_bundle(),
         headers={"Authorization": "Bearer %s" % tok},
     )
-    resp = client.get("/api/v1/keys/prekeys/count", headers={"Authorization": "Bearer %s" % tok})
+    resp = client.get(
+        "/api/v1/keys/prekeys/count", headers={"Authorization": "Bearer %s" % tok}
+    )
     assert resp.status_code == HTTPStatus.OK
     assert resp.json()["count"] == 3
 
@@ -84,17 +86,38 @@ def test_prekey_count(client, session):
 def test_endpoints_reject_invalid_token(client, session):
     bad = {"Authorization": "Bearer not.a.real.token"}
     bundle = _make_bundle()
-    assert client.post("/api/v1/keys/bundle", json=bundle, headers=bad).status_code == HTTPStatus.UNAUTHORIZED
-    assert client.post("/api/v1/keys/prekeys", json={"one_time_prekeys": []}, headers=bad).status_code == HTTPStatus.UNAUTHORIZED
-    assert client.get("/api/v1/keys/prekeys/count", headers=bad).status_code == HTTPStatus.UNAUTHORIZED
-    assert client.get("/api/v1/keys/1", headers=bad).status_code == HTTPStatus.UNAUTHORIZED
+    assert (
+        client.post("/api/v1/keys/bundle", json=bundle, headers=bad).status_code
+        == HTTPStatus.UNAUTHORIZED
+    )
+    assert (
+        client.post(
+            "/api/v1/keys/prekeys", json={"one_time_prekeys": []}, headers=bad
+        ).status_code
+        == HTTPStatus.UNAUTHORIZED
+    )
+    assert (
+        client.get("/api/v1/keys/prekeys/count", headers=bad).status_code
+        == HTTPStatus.UNAUTHORIZED
+    )
+    assert (
+        client.get("/api/v1/keys/1", headers=bad).status_code == HTTPStatus.UNAUTHORIZED
+    )
 
 
 def test_endpoints_require_auth(client, session):
     bundle = _make_bundle()
-    assert client.post("/api/v1/keys/bundle", json=bundle).status_code == HTTPStatus.UNAUTHORIZED
-    assert client.post("/api/v1/keys/prekeys", json={"one_time_prekeys": []}).status_code == HTTPStatus.UNAUTHORIZED
-    assert client.get("/api/v1/keys/prekeys/count").status_code == HTTPStatus.UNAUTHORIZED
+    assert (
+        client.post("/api/v1/keys/bundle", json=bundle).status_code
+        == HTTPStatus.UNAUTHORIZED
+    )
+    assert (
+        client.post("/api/v1/keys/prekeys", json={"one_time_prekeys": []}).status_code
+        == HTTPStatus.UNAUTHORIZED
+    )
+    assert (
+        client.get("/api/v1/keys/prekeys/count").status_code == HTTPStatus.UNAUTHORIZED
+    )
     assert client.get("/api/v1/keys/1").status_code == HTTPStatus.UNAUTHORIZED
 
 
@@ -137,9 +160,15 @@ def test_fetch_bundle_no_one_time_prekey_returns_null(client, session):
     alice, alice_tok, _ = auth_helper(client, session, "alice")
     bundle = _make_bundle()
     bundle["one_time_prekeys"] = []
-    client.post("/api/v1/keys/bundle", json=bundle, headers={"Authorization": "Bearer %s" % alice_tok})
+    client.post(
+        "/api/v1/keys/bundle",
+        json=bundle,
+        headers={"Authorization": "Bearer %s" % alice_tok},
+    )
     _, bob_tok, _ = auth_helper(client, session, "bob")
-    resp = client.get("/api/v1/keys/%d" % alice.id, headers={"Authorization": "Bearer %s" % bob_tok})
+    resp = client.get(
+        "/api/v1/keys/%d" % alice.id, headers={"Authorization": "Bearer %s" % bob_tok}
+    )
     assert resp.status_code == HTTPStatus.OK
     assert resp.json()["one_time_prekey"] is None
 
@@ -149,17 +178,29 @@ def test_publish_bundle_twice_upserts(client, session):
     bundle1 = _make_bundle()
     bundle2 = _make_bundle()
     bundle2["identity_pub"] = base64.b64encode(b"x" * 32).decode()
-    client.post("/api/v1/keys/bundle", json=bundle1, headers={"Authorization": "Bearer %s" % alice_tok})
-    client.post("/api/v1/keys/bundle", json=bundle2, headers={"Authorization": "Bearer %s" % alice_tok})
+    client.post(
+        "/api/v1/keys/bundle",
+        json=bundle1,
+        headers={"Authorization": "Bearer %s" % alice_tok},
+    )
+    client.post(
+        "/api/v1/keys/bundle",
+        json=bundle2,
+        headers={"Authorization": "Bearer %s" % alice_tok},
+    )
     _, bob_tok, _ = auth_helper(client, session, "bob")
-    resp = client.get("/api/v1/keys/%d" % alice.id, headers={"Authorization": "Bearer %s" % bob_tok})
+    resp = client.get(
+        "/api/v1/keys/%d" % alice.id, headers={"Authorization": "Bearer %s" % bob_tok}
+    )
     assert resp.json()["identity_pub"] == bundle2["identity_pub"]
 
 
 def test_fetch_user_with_no_bundle_returns_404(client, session):
     alice, alice_tok, _ = auth_helper(client, session, "alice")
     _, bob_tok, _ = auth_helper(client, session, "bob")
-    resp = client.get("/api/v1/keys/%d" % alice.id, headers={"Authorization": "Bearer %s" % bob_tok})
+    resp = client.get(
+        "/api/v1/keys/%d" % alice.id, headers={"Authorization": "Bearer %s" % bob_tok}
+    )
     assert resp.status_code == HTTPStatus.NOT_FOUND
 
 
@@ -167,6 +208,12 @@ def test_prekey_count_zero_when_exhausted(client, session):
     alice, alice_tok, _ = auth_helper(client, session, "alice")
     bundle = _make_bundle()
     bundle["one_time_prekeys"] = []
-    client.post("/api/v1/keys/bundle", json=bundle, headers={"Authorization": "Bearer %s" % alice_tok})
-    resp = client.get("/api/v1/keys/prekeys/count", headers={"Authorization": "Bearer %s" % alice_tok})
+    client.post(
+        "/api/v1/keys/bundle",
+        json=bundle,
+        headers={"Authorization": "Bearer %s" % alice_tok},
+    )
+    resp = client.get(
+        "/api/v1/keys/prekeys/count", headers={"Authorization": "Bearer %s" % alice_tok}
+    )
     assert resp.json()["count"] == 0

@@ -5,7 +5,10 @@ from pydantic import BaseModel, Field
 from app.config import config
 from app.schemas.common import Base64
 
-GroupName = Field(min_length=config["validation"]["group_name_min_length"], max_length=config["validation"]["group_name_max_length"])
+GroupName = Field(
+    min_length=config["validation"]["group_name_min_length"],
+    max_length=config["validation"]["group_name_max_length"],
+)
 
 
 class RemoveMemberRequest(BaseModel):

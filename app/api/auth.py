@@ -59,7 +59,9 @@ async def register(
         raise HTTPException(status_code=HTTPStatus.CONFLICT, detail="Username taken")
     totp_secret = generate_totp_secret()
     totp_enc = encrypt_totp_secret(totp_secret)
-    user_id = repo.create_user(body.username, body.srp_salt, body.srp_verifier, totp_enc)
+    user_id = repo.create_user(
+        body.username, body.srp_salt, body.srp_verifier, totp_enc
+    )
     uri = get_provisioning_uri(totp_secret, body.username)
     logger.info("register success username=%s user_id=%d", body.username, user_id)
     return RegisterResponse(user_id=user_id, totp_provisioning_uri=uri)
@@ -115,7 +117,9 @@ async def srp_verify_endpoint(
         raise HTTPException(
             status_code=HTTPStatus.UNAUTHORIZED, detail="Invalid credentials"
         )
-    logger.info("srp-verify username resolved username=%s ip=%s", username, _client_ip(request))
+    logger.info(
+        "srp-verify username resolved username=%s ip=%s", username, _client_ip(request)
+    )
     user = repo.get_user_by_username(username)
     if user is None:
         logger.warning(
@@ -141,7 +145,9 @@ async def verify_2fa(
     logger.info("2fa attempt ip=%s user_id=%d", _client_ip(request), user.id)
     totp_secret = decrypt_totp_secret(user.totp_secret_enc)
     if not verify_totp(totp_secret, body.totp_code):
-        logger.warning("2fa failed: wrong totp code user_id=%d ip=%s", user.id, _client_ip(request))
+        logger.warning(
+            "2fa failed: wrong totp code user_id=%d ip=%s", user.id, _client_ip(request)
+        )
         raise HTTPException(
             status_code=HTTPStatus.UNAUTHORIZED, detail="Invalid TOTP code"
         )

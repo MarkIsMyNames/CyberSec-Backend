@@ -29,7 +29,9 @@ class GroupMember(Base):
 class SenderKeyDistribution(Base):
     __tablename__ = "sender_key_distributions"
     __table_args__ = (
-        UniqueConstraint("recipient_id", "group_id", "epoch", name="uq_skd_recipient_group_epoch"),
+        UniqueConstraint(
+            "recipient_id", "group_id", "epoch", name="uq_skd_recipient_group_epoch"
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -45,9 +47,7 @@ class SenderKeyDistribution(Base):
 
 class GroupMessage(Base):
     __tablename__ = "group_messages"
-    __table_args__ = (
-        Index("ix_group_messages_group_id_id", "group_id", "id"),
-    )
+    __table_args__ = (Index("ix_group_messages_group_id_id", "group_id", "id"),)
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     sender_id: Mapped[int] = mapped_column(

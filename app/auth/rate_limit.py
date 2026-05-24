@@ -42,36 +42,36 @@ ip_limiter = Limiter(key_func=get_remote_address)
 
 
 def auth_limit() -> str:
-    return config["rate_limits"]["auth"]
+    return str(config["rate_limits"]["auth"])
 
 
 def refresh_limit() -> str:
-    return config["rate_limits"]["refresh"]
+    return str(config["rate_limits"]["refresh"])
 
 
 def logout_limit() -> str:
-    return config["rate_limits"]["logout"]
+    return str(config["rate_limits"]["logout"])
 
 
 def messages_limit() -> str:
-    return config["rate_limits"]["messages"]
+    return str(config["rate_limits"]["messages"])
 
 
 def keys_limit() -> str:
-    return config["rate_limits"]["keys"]
+    return str(config["rate_limits"]["keys"])
 
 
 def group_limit() -> str:
-    return config["rate_limits"]["groups"]
+    return str(config["rate_limits"]["groups"])
 
 
 def ip_messages_limit() -> str:
-    return config["rate_limits"]["ip_messages"]
+    return str(config["rate_limits"]["ip_messages"])
 
 
 def ip_keys_limit() -> str:
-    return config["rate_limits"]["ip_keys"]
+    return str(config["rate_limits"]["ip_keys"])
 
 
 def ip_group_limit() -> str:
-    return config["rate_limits"]["ip_groups"]
+    return str(config["rate_limits"]["ip_groups"])

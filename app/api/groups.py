@@ -2,6 +2,7 @@ import base64
 from http import HTTPStatus
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response
+from sqlalchemy.exc import IntegrityError
 
 from app.api.deps import get_current_user, require_group_member
 from app.auth.rate_limit import (
@@ -121,6 +122,8 @@ async def add_member(
             body.user_id,
         )
         raise HTTPException(status_code=HTTPStatus.FORBIDDEN, detail=str(exc))
+    except IntegrityError:
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="user not found")
     logger.info("member added group_id=%d user_id=%d", group.id, body.user_id)
     return Response(status_code=HTTPStatus.NO_CONTENT)
 

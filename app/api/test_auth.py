@@ -333,6 +333,7 @@ def test_delete_creator_reassigns_to_remaining_member(client, session):
         "/api/v1/auth/me",
         headers={"Authorization": "Bearer %s" % tok_c},
     )
+    session.expire_all()
     group = grp_repo.get_group(group_id)
     assert group is not None, "group must survive after creator deleted"
     assert (

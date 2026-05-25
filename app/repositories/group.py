@@ -83,8 +83,14 @@ class SQLGroupRepository:
         user_id: int,
         skdm_ciphertexts: dict[int, bytes] | None = None,
     ) -> None:
+        group: Group | None = self._session.scalar(
+            select(Group).where(Group.id == group_id).with_for_update()
+        )
+        if group is None:
+            logger.debug("remove_member no-op: group not found group_id=%d", group_id)
+            return
         is_self = requester_id == user_id
-        if not is_self and not self.is_creator(group_id, requester_id):
+        if not is_self and group.creator_id != requester_id:
             logger.warning(
                 "unauthorised remove_member group_id=%d requester_id=%d target_id=%d",
                 group_id,
@@ -106,8 +112,9 @@ class SQLGroupRepository:
             )
             return
 
-        self._session.execute(
-            delete(Group).where(
+        group_deleted = self._session.execute(
+            delete(Group)
+            .where(
                 Group.id == group_id,
                 select(func.count())
                 .select_from(GroupMember)
@@ -115,16 +122,14 @@ class SQLGroupRepository:
                 .scalar_subquery()
                 <= 1,
             )
-        )
-        current_creator_id = self._session.scalar(
-            select(Group.creator_id).where(Group.id == group_id)
-        )
-        if current_creator_id is None:
+            .returning(Group.id)
+        ).scalar()
+        if group_deleted is not None:
             self._session.commit()
-            logger.info("Group %d no longer exists", group_id)
+            logger.info("group deleted — last member left group_id=%d", group_id)
             return
 
-        if current_creator_id == user_id:
+        if group.creator_id == user_id:
             new_creator: GroupMember | None = self._session.scalar(
                 select(GroupMember)
                 .where(GroupMember.group_id == group_id)

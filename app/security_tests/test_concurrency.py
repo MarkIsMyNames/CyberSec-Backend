@@ -1,14 +1,18 @@
+import base64
 import hashlib
 import secrets
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
+from http import HTTPStatus
 
 import pytest
 from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 import psycopg2.errors
+
+from app.security_tests.test_helper import auth_helper
 
 from app.config import config
 from app.database import init_db
@@ -540,6 +544,151 @@ def test_concurrent_group_messages_from_different_senders(concurrent_db):
     assert count == 2, "both messages must be stored"
 
 
+def test_concurrent_add_member_while_user_deleted(concurrent_db):
+    with Session(concurrent_db, expire_on_commit=False) as setup_sess:
+        users = SQLUserRepository(setup_sess)
+        alice = users.create_user("alice_amd1", "s", b"v", b"t")
+        target = users.create_user("target_amd1", "s", b"v", b"t")
+        group = SQLGroupRepository(setup_sess).create_group("g", creator_id=alice)
+
+    barrier = threading.Barrier(2)
+    errors: list[Exception] = []
+    lock = threading.Lock()
+
+    def add() -> None:
+        barrier.wait()
+        try:
+            with Session(concurrent_db, expire_on_commit=False) as sess:
+                SQLGroupRepository(sess).add_member(group.id, alice, target, b"skdm")
+        except (SQLAlchemyError, ValueError):
+            pass
+        except Exception as exc:
+            with lock:
+                errors.append(exc)
+
+    def delete() -> None:
+        barrier.wait()
+        try:
+            with Session(concurrent_db, expire_on_commit=False) as sess:
+                SQLUserRepository(sess).delete_user(target)
+        except SQLAlchemyError as exc:
+            with lock:
+                errors.append(exc)
+
+    with ThreadPoolExecutor(max_workers=2) as ex:
+        f1 = ex.submit(add)
+        f2 = ex.submit(delete)
+        f1.result(timeout=10)
+        f2.result(timeout=10)
+
+    assert errors == [], "unexpected errors: %s" % errors
+    with Session(concurrent_db, expire_on_commit=False) as check_sess:
+        user_gone = SQLUserRepository(check_sess).get_user_by_id(target) is None
+        still_member = SQLGroupRepository(check_sess).is_member(group.id, target)
+    assert user_gone, "target user must have been deleted"
+    assert not still_member, "deleted user must not remain a group member"
+
+
+def test_concurrent_remove_member_same_group_consistent_creator(concurrent_db):
+    with Session(concurrent_db, expire_on_commit=False) as setup_sess:
+        users = SQLUserRepository(setup_sess)
+        alice = users.create_user("alice_rmc1", "s", b"v", b"t")
+        bob = users.create_user("bob_rmc1", "s", b"v", b"t")
+        carol = users.create_user("carol_rmc1", "s", b"v", b"t")
+        repo = SQLGroupRepository(setup_sess)
+        group = repo.create_group("g", creator_id=alice)
+        repo.add_member(group.id, alice, bob, b"skdm")
+        repo.add_member(group.id, alice, carol, b"skdm")
+
+    barrier = threading.Barrier(2)
+    errors: list[Exception] = []
+    lock = threading.Lock()
+
+    def kick_bob() -> None:
+        barrier.wait()
+        try:
+            with Session(concurrent_db, expire_on_commit=False) as sess:
+                SQLGroupRepository(sess).remove_member(group.id, alice, bob)
+        except SQLAlchemyError as exc:
+            with lock:
+                errors.append(exc)
+
+    def bob_leaves() -> None:
+        barrier.wait()
+        try:
+            with Session(concurrent_db, expire_on_commit=False) as sess:
+                SQLGroupRepository(sess).remove_member(group.id, bob, bob)
+        except SQLAlchemyError as exc:
+            with lock:
+                errors.append(exc)
+
+    with ThreadPoolExecutor(max_workers=2) as ex:
+        f1 = ex.submit(kick_bob)
+        f2 = ex.submit(bob_leaves)
+        f1.result(timeout=10)
+        f2.result(timeout=10)
+
+    assert errors == [], "unexpected errors: %s" % errors
+    with Session(concurrent_db, expire_on_commit=False) as check_sess:
+        repo = SQLGroupRepository(check_sess)
+        fetched = repo.get_group(group.id)
+        members = repo.get_members(group.id)
+    assert fetched is not None, "group must still exist (alice + carol remain)"
+    assert fetched.creator_id == alice, "alice must still be creator"
+    assert bob not in members, "bob must have been removed"
+    assert carol in members, "carol must still be a member"
+
+
+def test_concurrent_add_and_remove_skdm_epoch_no_orphan(concurrent_db):
+    with Session(concurrent_db, expire_on_commit=False) as setup_sess:
+        users = SQLUserRepository(setup_sess)
+        alice = users.create_user("alice_skdm2", "s", b"v", b"t")
+        bob = users.create_user("bob_skdm2", "s", b"v", b"t")
+        carol = users.create_user("carol_skdm2", "s", b"v", b"t")
+        repo = SQLGroupRepository(setup_sess)
+        group = repo.create_group("g", creator_id=alice)
+        repo.add_member(group.id, alice, bob, b"skdm")
+
+    barrier = threading.Barrier(2)
+    errors: list[Exception] = []
+    lock = threading.Lock()
+
+    def add_carol() -> None:
+        barrier.wait()
+        try:
+            with Session(concurrent_db, expire_on_commit=False) as sess:
+                SQLGroupRepository(sess).add_member(group.id, alice, carol, b"skdm_carol")
+        except SQLAlchemyError as exc:
+            with lock:
+                errors.append(exc)
+
+    def remove_bob() -> None:
+        barrier.wait()
+        try:
+            with Session(concurrent_db, expire_on_commit=False) as sess:
+                SQLGroupRepository(sess).remove_member(
+                    group.id, alice, bob, {alice: b"skdm_alice"}
+                )
+        except SQLAlchemyError as exc:
+            with lock:
+                errors.append(exc)
+
+    with ThreadPoolExecutor(max_workers=2) as ex:
+        f1 = ex.submit(add_carol)
+        f2 = ex.submit(remove_bob)
+        f1.result(timeout=10)
+        f2.result(timeout=10)
+
+    assert errors == [], "unexpected errors: %s" % errors
+    with Session(concurrent_db, expire_on_commit=False) as check_sess:
+        repo = SQLGroupRepository(check_sess)
+        fetched = repo.get_group(group.id)
+        members = repo.get_members(group.id)
+    assert fetched is not None
+    assert bob not in members, "bob must have been removed"
+    assert fetched.epoch > 0, "epoch must have been incremented"
+
+
 def test_concurrent_one_time_prekey_upload_no_loss(concurrent_db):
     with Session(concurrent_db, expire_on_commit=False) as setup_sess:
         alice = SQLUserRepository(setup_sess).create_user("alice_opk1", "s", b"v", b"t")
@@ -567,3 +716,198 @@ def test_concurrent_one_time_prekey_upload_no_loss(concurrent_db):
     with Session(concurrent_db, expire_on_commit=False) as check_sess:
         count = SQLKeyBundleRepository(check_sess).count_one_time_prekeys(alice)
     assert count == 4, "all 4 uploaded keys must be stored"
+
+
+def test_concurrent_creator_and_member_delete_consistent_group(client, session):
+    creator, tok_c, _ = auth_helper(client, session, "httpconcreator")
+    member, tok_m, _ = auth_helper(client, session, "httpconcmember")
+    _b64 = base64.b64encode(b"\x09" * 32).decode()
+    grp_resp = client.post(
+        "/api/v1/groups/",
+        json={"name": "http_concgroup"},
+        headers={"Authorization": "Bearer %s" % tok_c},
+    ).json()
+    group_id = grp_resp["id"]
+    client.post(
+        "/api/v1/groups/%d/members" % group_id,
+        json={"user_id": member.id, "skdm_ciphertext": _b64},
+        headers={"Authorization": "Bearer %s" % tok_c},
+    )
+    errors = []
+
+    def _delete_creator():
+        try:
+            client.delete("/api/v1/auth/me", headers={"Authorization": "Bearer %s" % tok_c})
+        except Exception as exc:
+            errors.append(exc)
+
+    def _delete_member():
+        try:
+            client.delete("/api/v1/auth/me", headers={"Authorization": "Bearer %s" % tok_m})
+        except Exception as exc:
+            errors.append(exc)
+
+    t1 = threading.Thread(target=_delete_creator)
+    t2 = threading.Thread(target=_delete_member)
+    t1.start()
+    t2.start()
+    t1.join()
+    t2.join()
+
+    assert errors == [], "no unhandled exceptions during concurrent deletes"
+    repo = SQLUserRepository(session)
+    grp_repo = SQLGroupRepository(session)
+    creator_gone = repo.get_user_by_id(creator.id) is None
+    member_gone = repo.get_user_by_id(member.id) is None
+    group = grp_repo.get_group(group_id)
+    if creator_gone and member_gone:
+        assert group is None, "group must be deleted when all members gone"
+    else:
+        assert group is not None, "group must exist while a member remains"
+        surviving_id = member.id if creator_gone else creator.id
+        assert group.creator_id == surviving_id
+
+
+def test_concurrent_double_delete_me_only_one_succeeds(client, session):
+    user, access_token, _ = auth_helper(client, session, "httponcdel")
+    results = []
+
+    def _delete():
+        resp = client.delete(
+            "/api/v1/auth/me",
+            headers={"Authorization": "Bearer %s" % access_token},
+        )
+        results.append(resp.status_code)
+
+    threads = [threading.Thread(target=_delete) for _ in range(2)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert HTTPStatus.NO_CONTENT in results
+    assert HTTPStatus.UNAUTHORIZED in results
+    assert SQLUserRepository(session).get_user_by_id(user.id) is None
+
+
+def test_delete_me_while_messages_sending_no_orphan(client, session):
+    user_a, tok_a, _ = auth_helper(client, session, "httpconcenda")
+    user_b, tok_b, _ = auth_helper(client, session, "httpconsendb")
+    _b64 = base64.b64encode(b"\x05" * 32).decode()
+    errors = []
+
+    def _send():
+        for _ in range(5):
+            try:
+                client.post(
+                    "/api/v1/messages/",
+                    json={"recipient_id": user_b.id, "ciphertext": _b64, "ratchet_header_enc": _b64},
+                    headers={"Authorization": "Bearer %s" % tok_a},
+                )
+            except Exception as exc:
+                errors.append(exc)
+
+    def _delete():
+        time.sleep(0.05)
+        client.delete("/api/v1/auth/me", headers={"Authorization": "Bearer %s" % tok_a})
+
+    t1 = threading.Thread(target=_send)
+    t2 = threading.Thread(target=_delete)
+    t1.start()
+    t2.start()
+    t1.join()
+    t2.join()
+    assert errors == []
+
+
+def test_concurrent_add_member_while_user_deleted_http(client, session):
+    creator, tok_c, _ = auth_helper(client, session, "httpraceaddc")
+    target, tok_t, _ = auth_helper(client, session, "httpraceaddt")
+    _b64 = base64.b64encode(b"\x0a" * 32).decode()
+    grp_resp = client.post(
+        "/api/v1/groups/",
+        json={"name": "http_race_add_group"},
+        headers={"Authorization": "Bearer %s" % tok_c},
+    ).json()
+    group_id = grp_resp["id"]
+    errors = []
+
+    def _add():
+        try:
+            client.post(
+                "/api/v1/groups/%d/members" % group_id,
+                json={"user_id": target.id, "skdm_ciphertext": _b64},
+                headers={"Authorization": "Bearer %s" % tok_c},
+            )
+        except Exception as exc:
+            errors.append(exc)
+
+    def _delete():
+        try:
+            client.delete("/api/v1/auth/me", headers={"Authorization": "Bearer %s" % tok_t})
+        except Exception as exc:
+            errors.append(exc)
+
+    t1 = threading.Thread(target=_add)
+    t2 = threading.Thread(target=_delete)
+    t1.start()
+    t2.start()
+    t1.join()
+    t2.join()
+
+    assert errors == []
+    assert SQLUserRepository(session).get_user_by_id(target.id) is None
+    assert not SQLGroupRepository(session).is_member(group_id, target.id)
+
+
+def test_concurrent_remove_member_same_group_http(client, session):
+    creator, tok_c, _ = auth_helper(client, session, "httpracerc")
+    member_a, tok_a, _ = auth_helper(client, session, "httpraceremovea")
+    member_b, tok_b, _ = auth_helper(client, session, "httpraceremoveb")
+    _b64 = base64.b64encode(b"\x0b" * 32).decode()
+    grp_resp = client.post(
+        "/api/v1/groups/",
+        json={"name": "http_race_rm_group"},
+        headers={"Authorization": "Bearer %s" % tok_c},
+    ).json()
+    group_id = grp_resp["id"]
+    for uid in [member_a.id, member_b.id]:
+        client.post(
+            "/api/v1/groups/%d/members" % group_id,
+            json={"user_id": uid, "skdm_ciphertext": _b64},
+            headers={"Authorization": "Bearer %s" % tok_c},
+        )
+    errors = []
+
+    def _kick():
+        try:
+            client.delete(
+                "/api/v1/groups/%d/members/%d" % (group_id, member_a.id),
+                headers={"Authorization": "Bearer %s" % tok_c},
+            )
+        except Exception as exc:
+            errors.append(exc)
+
+    def _leave():
+        try:
+            client.delete(
+                "/api/v1/groups/%d/members/%d" % (group_id, member_a.id),
+                headers={"Authorization": "Bearer %s" % tok_a},
+            )
+        except Exception as exc:
+            errors.append(exc)
+
+    t1 = threading.Thread(target=_kick)
+    t2 = threading.Thread(target=_leave)
+    t1.start()
+    t2.start()
+    t1.join()
+    t2.join()
+
+    assert errors == []
+    grp_repo = SQLGroupRepository(session)
+    group = grp_repo.get_group(group_id)
+    assert group is not None
+    assert not grp_repo.is_member(group_id, member_a.id)
+    assert grp_repo.is_member(group_id, member_b.id)
+    assert group.creator_id == creator.id

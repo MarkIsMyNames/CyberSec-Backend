@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 
 from app.api import auth, groups, keys, messages
-from app.auth.rate_limit import ip_limiter, limiter
+from app.auth.rate_limit import limiter
 from app.database import init_db
 from app.logger import logger
 from app.middleware.security import SecurityHeadersMiddleware
@@ -21,7 +21,6 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
 
 fastapi = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
 fastapi.state.limiter = limiter
-fastapi.state.ip_limiter = ip_limiter
 
 fastapi.include_router(auth.router, prefix="/api/v1/auth")
 fastapi.include_router(keys.router, prefix="/api/v1/keys")

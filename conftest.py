@@ -5,7 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 
-from app.auth.rate_limit import ip_limiter, limiter
+from app.auth.rate_limit import limiter
 from app.config import config
 from app.database import init_db
 from app.dependencies import get_session
@@ -51,7 +51,6 @@ def session(db):
 @pytest.fixture
 def client(db):
     limiter.reset()
-    ip_limiter.reset()
     with TestClient(application) as c:
         yield c
 
@@ -59,6 +58,5 @@ def client(db):
 @pytest.fixture
 def low_limits(monkeypatch):
     limiter.reset()
-    ip_limiter.reset()
     for key in config["rate_limits"]:
         monkeypatch.setitem(config["rate_limits"], key, "3/minute")

@@ -15,7 +15,6 @@ from app.auth.rate_limit import (
     keys_limit,
     messages_limit,
     _rate_limit_key,
-    ip_limiter,
     limiter,
 )
 from app.config import config
@@ -44,7 +43,6 @@ def _make_token(sub: str) -> str:
 
 def test_rate_limiter_exists():
     assert limiter is not None
-    assert ip_limiter is not None
 
 
 def test_limit_strings_match_config():

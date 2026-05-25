@@ -657,7 +657,9 @@ def test_concurrent_add_and_remove_skdm_epoch_no_orphan(concurrent_db):
         barrier.wait()
         try:
             with Session(concurrent_db, expire_on_commit=False) as sess:
-                SQLGroupRepository(sess).add_member(group.id, alice, carol, b"skdm_carol")
+                SQLGroupRepository(sess).add_member(
+                    group.id, alice, carol, b"skdm_carol"
+                )
         except SQLAlchemyError as exc:
             with lock:
                 errors.append(exc)
@@ -737,13 +739,17 @@ def test_concurrent_creator_and_member_delete_consistent_group(client, session):
 
     def _delete_creator():
         try:
-            client.delete("/api/v1/auth/me", headers={"Authorization": "Bearer %s" % tok_c})
+            client.delete(
+                "/api/v1/auth/me", headers={"Authorization": "Bearer %s" % tok_c}
+            )
         except Exception as exc:
             errors.append(exc)
 
     def _delete_member():
         try:
-            client.delete("/api/v1/auth/me", headers={"Authorization": "Bearer %s" % tok_m})
+            client.delete(
+                "/api/v1/auth/me", headers={"Authorization": "Bearer %s" % tok_m}
+            )
         except Exception as exc:
             errors.append(exc)
 
@@ -801,7 +807,11 @@ def test_delete_me_while_messages_sending_no_orphan(client, session):
             try:
                 client.post(
                     "/api/v1/messages/",
-                    json={"recipient_id": user_b.id, "ciphertext": _b64, "ratchet_header_enc": _b64},
+                    json={
+                        "recipient_id": user_b.id,
+                        "ciphertext": _b64,
+                        "ratchet_header_enc": _b64,
+                    },
                     headers={"Authorization": "Bearer %s" % tok_a},
                 )
             except Exception as exc:
@@ -844,7 +854,9 @@ def test_concurrent_add_member_while_user_deleted_http(client, session):
 
     def _delete():
         try:
-            client.delete("/api/v1/auth/me", headers={"Authorization": "Bearer %s" % tok_t})
+            client.delete(
+                "/api/v1/auth/me", headers={"Authorization": "Bearer %s" % tok_t}
+            )
         except Exception as exc:
             errors.append(exc)
 

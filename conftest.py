@@ -56,19 +56,8 @@ def client(db):
         yield c
 
 
-@pytest.fixture(autouse=True)
-def disable_rate_limits():
-    limiter.enabled = False
-    ip_limiter.enabled = False
-    yield
-    limiter.enabled = True
-    ip_limiter.enabled = True
-
-
 @pytest.fixture
 def low_limits(monkeypatch):
-    limiter.enabled = True
-    ip_limiter.enabled = True
     limiter.reset()
     ip_limiter.reset()
     for key in config["rate_limits"]:

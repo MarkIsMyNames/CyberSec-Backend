@@ -25,7 +25,8 @@
     "groups": "15/minute",
     "ip_messages": "150/minute",
     "ip_keys": "150/minute",
-    "ip_groups": "75/minute"
+    "ip_groups": "75/minute",
+    "ip_auth": "50/minute"
   },
   "messaging": {
     "inbox_max_messages": 50000,

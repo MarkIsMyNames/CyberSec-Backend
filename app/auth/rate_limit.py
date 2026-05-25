@@ -75,3 +75,7 @@ def ip_keys_limit() -> str:
 
 def ip_group_limit() -> str:
     return str(config["rate_limits"]["ip_groups"])
+
+
+def ip_auth_limit() -> str:
+    return str(config["rate_limits"]["ip_auth"])

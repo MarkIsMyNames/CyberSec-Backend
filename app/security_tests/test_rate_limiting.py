@@ -6,7 +6,17 @@ from app.auth.totp import encrypt
 from app.repositories.user import SQLUserRepository
 from app.security_tests.test_helper import auth_helper
 
-_limit = 3  # matches the low_limits fixture (3/minute), so limit+1 = 4 requests
+_limit = 3
+
+
+def _make_users(session, prefix, count):
+    repo = SQLUserRepository(session)
+    enc = encrypt(b"dummy")
+    pairs = []
+    for i in range(count):
+        uid = repo.create_user("%s%d" % (prefix, i), "aa" * 16, enc, enc)
+        pairs.append((uid, issue_access_token(uid)))
+    return pairs
 
 
 def _register(client, username: str, password: str = "correcthorsebattery") -> None:
@@ -111,6 +121,62 @@ def test_groups_rate_limit_enforced(client, session, low_limits):
     assert any(r.status_code == HTTPStatus.TOO_MANY_REQUESTS for r in resps)
 
 
+def test_messages_ip_rate_limit_enforced(client, session, low_limits):
+    pairs = _make_users(session, "msgip", _limit + 1)
+    recipient_id, _ = pairs[0]
+    resps = [
+        client.post(
+            "/api/v1/messages/",
+            json={
+                "recipient_id": recipient_id,
+                "ciphertext": "Y3Q=",
+                "ratchet_header_enc": "aGRy",
+            },
+            headers={"Authorization": "Bearer %s" % tok},
+        )
+        for _, tok in pairs[1:]
+    ]
+    _, tok0 = pairs[0]
+    sender1_id, _ = pairs[1]
+    resps.append(
+        client.post(
+            "/api/v1/messages/",
+            json={
+                "recipient_id": sender1_id,
+                "ciphertext": "Y3Q=",
+                "ratchet_header_enc": "aGRy",
+            },
+            headers={"Authorization": "Bearer %s" % tok0},
+        )
+    )
+    assert any(r.status_code == HTTPStatus.TOO_MANY_REQUESTS for r in resps)
+
+
+def test_keys_ip_rate_limit_enforced(client, session, low_limits):
+    pairs = _make_users(session, "keyip", _limit + 1)
+    resps = [
+        client.get(
+            "/api/v1/keys/prekeys/count",
+            headers={"Authorization": "Bearer %s" % tok},
+        )
+        for _, tok in pairs
+    ]
+    assert any(r.status_code == HTTPStatus.TOO_MANY_REQUESTS for r in resps)
+
+
+def test_groups_ip_rate_limit_enforced(client, session, low_limits):
+    pairs = _make_users(session, "grpip", _limit + 1)
+    resps = [
+        client.post(
+            "/api/v1/groups/",
+            json={"name": "ipgrp%d" % i},
+            headers={"Authorization": "Bearer %s" % tok},
+        )
+        for i, (_, tok) in enumerate(pairs)
+    ]
+    assert any(r.status_code == HTTPStatus.TOO_MANY_REQUESTS for r in resps)
+
+
 def test_rate_limit_response_is_json_with_error_key(client, session, low_limits):
     alice, alice_tok, _ = auth_helper(client, session, "alice")
     bob, _, _ = auth_helper(client, session, "bob")
@@ -137,7 +203,9 @@ def test_delete_me_rate_limited(client, session, low_limits):
     repo = SQLUserRepository(session)
     dummy_enc = encrypt(b"dummy")
     toks = [
-        issue_access_token(repo.create_user("rldel%d" % i, "aa" * 16, dummy_enc, dummy_enc))
+        issue_access_token(
+            repo.create_user("rldel%d" % i, "aa" * 16, dummy_enc, dummy_enc)
+        )
         for i in range(1, 5)
     ]
     for tok in toks[:3]:

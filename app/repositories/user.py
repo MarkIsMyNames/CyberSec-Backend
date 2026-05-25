@@ -64,9 +64,7 @@ class SQLUserRepository:
         return blocked
 
     def delete_user(self, user_id: int) -> None:
-        self._session.execute(
-            select(User).where(User.id == user_id).with_for_update()
-        )
+        self._session.execute(select(User).where(User.id == user_id).with_for_update())
         rows = list(
             self._session.execute(
                 select(
@@ -92,9 +90,7 @@ class SQLUserRepository:
         multi_member_ids = [r.id for r in rows if r.member_count > 1]
 
         if sole_member_ids:
-            self._session.execute(
-                delete(Group).where(Group.id.in_(sole_member_ids))
-            )
+            self._session.execute(delete(Group).where(Group.id.in_(sole_member_ids)))
             logger.info(
                 "deleted sole-member groups user_id=%d group_ids=%s",
                 user_id,

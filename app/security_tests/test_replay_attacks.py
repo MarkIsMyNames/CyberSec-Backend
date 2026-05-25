@@ -117,7 +117,9 @@ def test_one_time_prekey_consumed_on_fetch(client, session):
 def test_delete_me_token_cannot_be_replayed(client, session):
     user, tok, _ = auth_helper(client, session, "replay_del")
     client.delete("/api/v1/auth/me", headers={"Authorization": "Bearer %s" % tok})
-    resp = client.delete("/api/v1/auth/me", headers={"Authorization": "Bearer %s" % tok})
+    resp = client.delete(
+        "/api/v1/auth/me", headers={"Authorization": "Bearer %s" % tok}
+    )
     assert resp.status_code == HTTPStatus.UNAUTHORIZED
 
 

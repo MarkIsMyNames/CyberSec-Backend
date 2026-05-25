@@ -188,5 +188,7 @@ async def delete_me(
     repo: SQLUserRepository = Depends(repo_dep(SQLUserRepository)),
 ) -> Response:
     repo.delete_user(current_user.id)
-    logger.info("account deleted user_id=%d ip=%s", current_user.id, _client_ip(request))
+    logger.info(
+        "account deleted user_id=%d ip=%s", current_user.id, _client_ip(request)
+    )
     return Response(status_code=HTTPStatus.NO_CONTENT)

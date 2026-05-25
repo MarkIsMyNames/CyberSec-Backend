@@ -56,6 +56,13 @@ def client(db):
         yield c
 
 
+@pytest.fixture(autouse=True)
+def high_limits(monkeypatch):
+    """Raise all rate limits high enough that normal multi-user tests never trip them."""
+    for key in config["rate_limits"]:
+        monkeypatch.setitem(config["rate_limits"], key, "1000/minute")
+
+
 @pytest.fixture
 def low_limits(monkeypatch):
     """Patch all rate limits to 3/minute so tests need only 4 requests to trigger a 429."""

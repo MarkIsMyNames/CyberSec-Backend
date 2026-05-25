@@ -134,6 +134,7 @@ def test_refresh_with_invalid_token_returns_401(client):
 
 # --- DELETE /me endpoint ---
 
+
 def test_delete_me_happy_path(client, session):
     user, access_token, _ = auth_helper(client, session, "delme_ok")
     resp = client.delete(
@@ -209,13 +210,18 @@ def test_delete_me_does_not_affect_other_user(client, session):
 
 # --- cascade via endpoint ---
 
+
 def test_delete_me_removes_sent_and_received_messages(client, session):
     user_a, tok_a, _ = auth_helper(client, session, "casc_msg_a")
     user_b, tok_b, _ = auth_helper(client, session, "casc_msg_b")
     _b64 = base64.b64encode(b"\x01" * 32).decode()
     client.post(
         "/api/v1/messages/",
-        json={"recipient_id": user_b.id, "ciphertext": _b64, "ratchet_header_enc": _b64},
+        json={
+            "recipient_id": user_b.id,
+            "ciphertext": _b64,
+            "ratchet_header_enc": _b64,
+        },
         headers={"Authorization": "Bearer %s" % tok_a},
     )
     msg_repo = SQLMessageRepository(session)
@@ -245,14 +251,15 @@ def test_delete_me_removes_group_membership(client, session):
     )
     grp_repo = SQLGroupRepository(session)
     members_before = grp_repo.get_members(grp_resp["id"])
-    assert user_a.id in members_before, "precondition: user_a must be a group member before delete"
+    assert (
+        user_a.id in members_before
+    ), "precondition: user_a must be a group member before delete"
     client.delete(
         "/api/v1/auth/me",
         headers={"Authorization": "Bearer %s" % tok_a},
     )
     members_after = grp_repo.get_members(grp_resp["id"])
     assert user_a.id not in members_after
-
 
 
 def test_delete_me_removes_group_messages(client, session):
@@ -289,7 +296,9 @@ def test_delete_me_last_member_deletes_group(client, session):
     ).json()
     group_id = grp_resp["id"]
     grp_repo = SQLGroupRepository(session)
-    assert grp_repo.get_group(group_id) is not None, "precondition: group must exist before delete"
+    assert (
+        grp_repo.get_group(group_id) is not None
+    ), "precondition: group must exist before delete"
     client.delete(
         "/api/v1/auth/me",
         headers={"Authorization": "Bearer %s" % tok},
@@ -298,6 +307,7 @@ def test_delete_me_last_member_deletes_group(client, session):
 
 
 # --- creator reassignment ---
+
 
 def test_delete_creator_reassigns_to_remaining_member(client, session):
     creator, tok_c, _ = auth_helper(client, session, "reassign_creator")
@@ -316,15 +326,18 @@ def test_delete_creator_reassigns_to_remaining_member(client, session):
     )
     grp_repo = SQLGroupRepository(session)
     group_before = grp_repo.get_group(group_id)
-    assert group_before is not None and group_before.creator_id == creator.id, \
-        "precondition: creator must own group before delete"
+    assert (
+        group_before is not None and group_before.creator_id == creator.id
+    ), "precondition: creator must own group before delete"
     client.delete(
         "/api/v1/auth/me",
         headers={"Authorization": "Bearer %s" % tok_c},
     )
     group = grp_repo.get_group(group_id)
     assert group is not None, "group must survive after creator deleted"
-    assert group.creator_id == member.id, "creator must be reassigned to remaining member"
+    assert (
+        group.creator_id == member.id
+    ), "creator must be reassigned to remaining member"
 
 
 def test_delete_non_creator_does_not_change_creator(client, session):

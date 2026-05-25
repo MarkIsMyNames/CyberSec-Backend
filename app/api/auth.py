@@ -2,7 +2,7 @@ from http import HTTPStatus
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 
-from app.api.deps import require_preauth_user, require_valid_refresh
+from app.api.deps import get_current_user, require_preauth_user, require_valid_refresh
 from app.auth.tokens import TokenClaims
 from app.auth.rate_limit import auth_limit, logout_limit, refresh_limit, limiter
 from app.auth.srp_session import srp_init, srp_verify
@@ -177,4 +177,16 @@ async def logout(
     claims: TokenClaims = Depends(require_valid_refresh),
 ) -> Response:
     logger.info("logout success user_id=%d", int(claims["sub"]))
+    return Response(status_code=HTTPStatus.NO_CONTENT)
+
+
+@router.delete("/me", status_code=HTTPStatus.NO_CONTENT)
+@limiter.limit(auth_limit)
+async def delete_me(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    repo: SQLUserRepository = Depends(repo_dep(SQLUserRepository)),
+) -> Response:
+    repo.delete_user(current_user.id)
+    logger.info("account deleted user_id=%d ip=%s", current_user.id, _client_ip(request))
     return Response(status_code=HTTPStatus.NO_CONTENT)

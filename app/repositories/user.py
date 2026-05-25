@@ -1,7 +1,8 @@
-from sqlalchemy import insert, select
+from sqlalchemy import case, delete, func, insert, select, update
 from sqlalchemy.orm import Session
 
 from app.logger import logger
+from app.models.group import Group, GroupMember
 from app.models.user import RefreshTokenBlocklist, User
 
 
@@ -61,3 +62,74 @@ class SQLUserRepository:
         if blocked:
             logger.warning("blocked refresh token presented")
         return blocked
+
+    def delete_user(self, user_id: int) -> None:
+        self._session.execute(
+            select(User).where(User.id == user_id).with_for_update()
+        )
+        rows = list(
+            self._session.execute(
+                select(
+                    Group.id,
+                    select(func.count())
+                    .select_from(GroupMember)
+                    .where(GroupMember.group_id == Group.id)
+                    .scalar_subquery()
+                    .label("member_count"),
+                )
+                .where(
+                    Group.id.in_(
+                        select(GroupMember.group_id).where(
+                            GroupMember.user_id == user_id
+                        )
+                    )
+                )
+                .order_by(Group.id)
+                .with_for_update()
+            )
+        )
+        sole_member_ids = [r.id for r in rows if r.member_count <= 1]
+        multi_member_ids = [r.id for r in rows if r.member_count > 1]
+
+        if sole_member_ids:
+            self._session.execute(
+                delete(Group).where(Group.id.in_(sole_member_ids))
+            )
+            logger.info(
+                "deleted sole-member groups user_id=%d group_ids=%s",
+                user_id,
+                sole_member_ids,
+            )
+        if multi_member_ids:
+            new_creator_subq = (
+                select(func.min(GroupMember.user_id))
+                .where(
+                    GroupMember.group_id == Group.id,
+                    GroupMember.user_id != user_id,
+                )
+                .scalar_subquery()
+            )
+            self._session.execute(
+                update(Group)
+                .where(Group.id.in_(multi_member_ids))
+                .values(
+                    creator_id=case(
+                        (Group.creator_id == user_id, new_creator_subq),
+                        else_=Group.creator_id,
+                    ),
+                    epoch=Group.epoch + 1,
+                )
+            )
+            logger.info(
+                "bumped epoch and reassigned creator where needed user_id=%d group_ids=%s",
+                user_id,
+                multi_member_ids,
+            )
+        self._session.execute(delete(User).where(User.id == user_id))
+        self._session.commit()
+        logger.info(
+            "deleted user id=%d sole_member_groups=%d multi_member_groups=%d",
+            user_id,
+            len(sole_member_ids),
+            len(multi_member_ids),
+        )

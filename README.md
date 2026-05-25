@@ -600,7 +600,7 @@ SQLite was used initially but replaced with PostgreSQL for two reasons:
 ## Known Limitations
 
 - **No sealed sender** — the server can observe who messages whom (social graph visible).
-- **TOFU trust model** — the first published key bundle is trusted unconditionally; no PKI or key transparency log.
+- **TOFU trust model** — the first published key bundle is trusted unconditionally; no key transparency log. A transparency log would not fully solve this anyway: the server controls the log and could show Alice and Bob two different versions (a split-view attack), each internally consistent. The standard mitigation is gossip — clients exchange the root hash they've seen so discrepancies are detected — but the server could simply drop gossip packets, silently preventing detection without either client knowing.
 - **Ed25519 not post-quantum** — unlike encryption, signatures are not vulnerable to store-now-decrypt-later attacks. Post-quantum signature schemes (ML-DSA, SLH-DSA) produce signatures 10–50× larger than Ed25519's 64 bytes, adding significant overhead per message. They are also recent NIST standards with far less real-world scrutiny than Ed25519.
 - **SRP-6a not post-quantum** — Shor's algorithm breaks discrete log, so a quantum attacker with a stolen verifier database could recover passwords. The post quantum replacement is OPAQUE, but no pip-installable Python implementation exists yet, and as a relatively new protocol it has had less real-world scrutiny than SRP.
 - **No Device Bound Service Credentials** — access tokens are not device-bound. Device binding is straightforward in browsers via the Web Authentication API (WebAuthn), but we've to build our own client; adding device-binding scheme would add significant complexity.

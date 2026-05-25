@@ -1,6 +1,9 @@
 import srp
 from http import HTTPStatus
 
+from app.auth.tokens import issue_access_token
+from app.auth.totp import encrypt
+from app.repositories.user import SQLUserRepository
 from app.security_tests.test_helper import auth_helper
 
 _limit = 3  # matches the low_limits fixture (3/minute), so limit+1 = 4 requests
@@ -131,14 +134,16 @@ def test_rate_limit_response_is_json_with_error_key(client, session, low_limits)
 
 
 def test_delete_me_rate_limited(client, session, low_limits):
-    _, tok1, _ = auth_helper(client, session, "rldel1")
-    _, tok2, _ = auth_helper(client, session, "rldel2")
-    _, tok3, _ = auth_helper(client, session, "rldel3")
-    _, tok4, _ = auth_helper(client, session, "rldel4")
-    for tok in [tok1, tok2, tok3]:
+    repo = SQLUserRepository(session)
+    dummy_enc = encrypt(b"dummy")
+    toks = [
+        issue_access_token(repo.create_user("rldel%d" % i, "aa" * 16, dummy_enc, dummy_enc))
+        for i in range(1, 5)
+    ]
+    for tok in toks[:3]:
         client.delete("/api/v1/auth/me", headers={"Authorization": "Bearer %s" % tok})
     resp = client.delete(
         "/api/v1/auth/me",
-        headers={"Authorization": "Bearer %s" % tok4},
+        headers={"Authorization": "Bearer %s" % toks[3]},
     )
     assert resp.status_code == HTTPStatus.TOO_MANY_REQUESTS

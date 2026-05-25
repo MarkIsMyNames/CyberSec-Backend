@@ -128,3 +128,17 @@ def test_rate_limit_response_is_json_with_error_key(client, session, low_limits)
     body = blocked.json()
     assert "error" in body
     assert "Rate limit exceeded" in body["error"]
+
+
+def test_delete_me_rate_limited(client, session, low_limits):
+    _, tok1, _ = auth_helper(client, session, "rl_del1")
+    _, tok2, _ = auth_helper(client, session, "rl_del2")
+    _, tok3, _ = auth_helper(client, session, "rl_del3")
+    _, tok4, _ = auth_helper(client, session, "rl_del4")
+    for tok in [tok1, tok2, tok3]:
+        client.delete("/api/v1/auth/me", headers={"Authorization": "Bearer %s" % tok})
+    resp = client.delete(
+        "/api/v1/auth/me",
+        headers={"Authorization": "Bearer %s" % tok4},
+    )
+    assert resp.status_code == HTTPStatus.TOO_MANY_REQUESTS

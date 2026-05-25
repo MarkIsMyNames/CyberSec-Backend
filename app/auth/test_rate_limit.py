@@ -5,6 +5,8 @@ from http import HTTPStatus
 import jwt
 from fastapi import Request
 
+from app.auth.totp import encrypt
+from app.repositories.user import SQLUserRepository
 from app.security_tests.test_helper import auth_helper
 from app.auth.rate_limit import (
     auth_limit,
@@ -76,15 +78,21 @@ def _limit_count(limit_str: str) -> int:
     return int(limit_str.split("/")[0])
 
 
+def _make_user(session, name: str) -> int:
+    repo = SQLUserRepository(session)
+    enc = encrypt(b"dummy")
+    return repo.create_user(name, "aa" * 16, enc, enc)
+
+
 def test_per_user_message_limit_enforced(client, session, low_limits):
     alice, alice_tok, _ = auth_helper(client, session, "alice")
-    bob, _, _ = auth_helper(client, session, "bob")
+    bob_id = _make_user(session, "bob")
     limit = _limit_count(messages_limit())
     responses = [
         client.post(
             "/api/v1/messages/",
             json={
-                "recipient_id": bob.id,
+                "recipient_id": bob_id,
                 "ciphertext": base64.b64encode(b"ct").decode(),
                 "ratchet_header_enc": base64.b64encode(b"hdr").decode(),
             },

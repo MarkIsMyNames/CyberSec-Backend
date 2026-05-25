@@ -63,8 +63,12 @@ class SQLUserRepository:
             logger.warning("blocked refresh token presented")
         return blocked
 
-    def delete_user(self, user_id: int) -> None:
-        self._session.execute(select(User).where(User.id == user_id).with_for_update())
+    def delete_user(self, user_id: int) -> bool:
+        result = self._session.execute(
+            select(User).where(User.id == user_id).with_for_update()
+        )
+        if result.scalar_one_or_none() is None:
+            return False
         rows = list(
             self._session.execute(
                 select(
@@ -129,3 +133,4 @@ class SQLUserRepository:
             len(sole_member_ids),
             len(multi_member_ids),
         )
+        return True

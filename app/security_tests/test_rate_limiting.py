@@ -79,9 +79,9 @@ def test_srp_verify_rate_limit_enforced(client, low_limits):
 
 def test_messages_rate_limit_enforced(client, session, low_limits):
     alice, alice_tok, _ = auth_helper(client, session, "alice")
-    bob, _, _ = auth_helper(client, session, "bob")
+    bob_id, _ = _make_users(session, "bob", 1)[0]
     payload = {
-        "recipient_id": bob.id,
+        "recipient_id": bob_id,
         "ciphertext": "Y3Q=",
         "ratchet_header_enc": "aGRy",
     }
@@ -179,9 +179,9 @@ def test_groups_ip_rate_limit_enforced(client, session, low_limits):
 
 def test_rate_limit_response_is_json_with_error_key(client, session, low_limits):
     alice, alice_tok, _ = auth_helper(client, session, "alice")
-    bob, _, _ = auth_helper(client, session, "bob")
+    bob_id, _ = _make_users(session, "bob", 1)[0]
     payload = {
-        "recipient_id": bob.id,
+        "recipient_id": bob_id,
         "ciphertext": "Y3Q=",
         "ratchet_header_enc": "aGRy",
     }

@@ -198,7 +198,8 @@ async def delete_me(
     current_user: User = Depends(get_current_user),
     repo: SQLUserRepository = Depends(repo_dep(SQLUserRepository)),
 ) -> Response:
-    repo.delete_user(current_user.id)
+    if not repo.delete_user(current_user.id):
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="User not found")
     logger.info(
         "account deleted user_id=%d ip=%s", current_user.id, _client_ip(request)
     )

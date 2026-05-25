@@ -12,7 +12,7 @@ def _rate_limit_key(request: Request) -> str:
     if auth.startswith("Bearer "):
         try:
             claims = jwt.decode(
-                auth[len("Bearer "):], options={"verify_signature": False}
+                auth[len("Bearer ") :], options={"verify_signature": False}
             )
             if sub := claims.get("sub"):
                 logger.debug("rate limit key: user=%s path=%s", sub, request.url.path)

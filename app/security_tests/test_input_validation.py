@@ -396,7 +396,7 @@ def test_delete_me_malformed_jwt_structure(client):
 
 
 def test_delete_me_tampered_payload(client, session):
-    user, _, _ = auth_helper(client, session, "iv_tamper")
+    user, _, _ = auth_helper(client, session, "ivtamper")
     fake_token = pyjwt.encode(
         {"sub": str(user.id), "scope": "full", "exp": int(time.time()) + 900},
         "wrong_secret_key",
@@ -410,7 +410,7 @@ def test_delete_me_tampered_payload(client, session):
 
 
 def test_delete_me_wrong_scope_token(client, session):
-    user, _, tokens = auth_helper(client, session, "iv_scope")
+    user, _, tokens = auth_helper(client, session, "ivscope")
     resp = client.delete(
         "/api/v1/auth/me",
         headers={"Authorization": "Bearer %s" % tokens["refresh_token"]},

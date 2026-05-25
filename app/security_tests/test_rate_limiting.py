@@ -131,10 +131,10 @@ def test_rate_limit_response_is_json_with_error_key(client, session, low_limits)
 
 
 def test_delete_me_rate_limited(client, session, low_limits):
-    _, tok1, _ = auth_helper(client, session, "rl_del1")
-    _, tok2, _ = auth_helper(client, session, "rl_del2")
-    _, tok3, _ = auth_helper(client, session, "rl_del3")
-    _, tok4, _ = auth_helper(client, session, "rl_del4")
+    _, tok1, _ = auth_helper(client, session, "rldel1")
+    _, tok2, _ = auth_helper(client, session, "rldel2")
+    _, tok3, _ = auth_helper(client, session, "rldel3")
+    _, tok4, _ = auth_helper(client, session, "rldel4")
     for tok in [tok1, tok2, tok3]:
         client.delete("/api/v1/auth/me", headers={"Authorization": "Bearer %s" % tok})
     resp = client.delete(

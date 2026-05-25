@@ -136,7 +136,7 @@ def test_refresh_with_invalid_token_returns_401(client):
 
 
 def test_delete_me_happy_path(client, session):
-    user, access_token, _ = auth_helper(client, session, "delme_ok")
+    user, access_token, _ = auth_helper(client, session, "delmeok")
     resp = client.delete(
         "/api/v1/auth/me",
         headers={"Authorization": "Bearer %s" % access_token},
@@ -159,7 +159,7 @@ def test_delete_me_invalid_token(client):
 
 
 def test_delete_me_user_gone_after_delete(client, session):
-    user, access_token, _ = auth_helper(client, session, "delme_gone")
+    user, access_token, _ = auth_helper(client, session, "delmegone")
     client.delete(
         "/api/v1/auth/me",
         headers={"Authorization": "Bearer %s" % access_token},
@@ -169,7 +169,7 @@ def test_delete_me_user_gone_after_delete(client, session):
 
 
 def test_delete_me_token_rejected_after_delete(client, session):
-    user, access_token, _ = auth_helper(client, session, "delme_reject")
+    user, access_token, _ = auth_helper(client, session, "delmereject")
     client.delete(
         "/api/v1/auth/me",
         headers={"Authorization": "Bearer %s" % access_token},
@@ -182,7 +182,7 @@ def test_delete_me_token_rejected_after_delete(client, session):
 
 
 def test_delete_me_double_delete(client, session):
-    user, access_token, _ = auth_helper(client, session, "delme_double")
+    user, access_token, _ = auth_helper(client, session, "delmedouble")
     client.delete(
         "/api/v1/auth/me",
         headers={"Authorization": "Bearer %s" % access_token},
@@ -195,8 +195,8 @@ def test_delete_me_double_delete(client, session):
 
 
 def test_delete_me_does_not_affect_other_user(client, session):
-    _, tok_a, _ = auth_helper(client, session, "delme_isoa")
-    user_b, tok_b, _ = auth_helper(client, session, "delme_isob")
+    _, tok_a, _ = auth_helper(client, session, "delmeisoa")
+    user_b, tok_b, _ = auth_helper(client, session, "delmeisob")
     client.delete(
         "/api/v1/auth/me",
         headers={"Authorization": "Bearer %s" % tok_a},
@@ -212,8 +212,8 @@ def test_delete_me_does_not_affect_other_user(client, session):
 
 
 def test_delete_me_removes_sent_and_received_messages(client, session):
-    user_a, tok_a, _ = auth_helper(client, session, "casc_msg_a")
-    user_b, tok_b, _ = auth_helper(client, session, "casc_msg_b")
+    user_a, tok_a, _ = auth_helper(client, session, "cascmsga")
+    user_b, tok_b, _ = auth_helper(client, session, "cascmsgb")
     _b64 = base64.b64encode(b"\x01" * 32).decode()
     client.post(
         "/api/v1/messages/",
@@ -236,8 +236,8 @@ def test_delete_me_removes_sent_and_received_messages(client, session):
 
 
 def test_delete_me_removes_group_membership(client, session):
-    user_a, tok_a, _ = auth_helper(client, session, "casc_grp_a")
-    user_b, tok_b, _ = auth_helper(client, session, "casc_grp_b")
+    user_a, tok_a, _ = auth_helper(client, session, "cascgrpa")
+    user_b, tok_b, _ = auth_helper(client, session, "cascgrpb")
     _b64 = base64.b64encode(b"\x02" * 32).decode()
     grp_resp = client.post(
         "/api/v1/groups/",
@@ -263,8 +263,8 @@ def test_delete_me_removes_group_membership(client, session):
 
 
 def test_delete_me_removes_group_messages(client, session):
-    user_a, tok_a, _ = auth_helper(client, session, "casc_gmsg_a")
-    user_b, tok_b, _ = auth_helper(client, session, "casc_gmsg_b")
+    user_a, tok_a, _ = auth_helper(client, session, "cascgmsga")
+    user_b, tok_b, _ = auth_helper(client, session, "cascgmsgb")
     _b64 = base64.b64encode(b"\x04" * 32).decode()
     grp_resp = client.post(
         "/api/v1/groups/",
@@ -288,7 +288,7 @@ def test_delete_me_removes_group_messages(client, session):
 
 
 def test_delete_me_last_member_deletes_group(client, session):
-    user, tok, _ = auth_helper(client, session, "casc_lastmem")
+    user, tok, _ = auth_helper(client, session, "casclastmem")
     grp_resp = client.post(
         "/api/v1/groups/",
         json={"name": "sologroup"},
@@ -310,8 +310,8 @@ def test_delete_me_last_member_deletes_group(client, session):
 
 
 def test_delete_creator_reassigns_to_remaining_member(client, session):
-    creator, tok_c, _ = auth_helper(client, session, "reassign_creator")
-    member, tok_m, _ = auth_helper(client, session, "reassign_member")
+    creator, tok_c, _ = auth_helper(client, session, "reassigncreator")
+    member, tok_m, _ = auth_helper(client, session, "reassignmember")
     _b64 = base64.b64encode(b"\x06" * 32).decode()
     grp_resp = client.post(
         "/api/v1/groups/",
@@ -341,8 +341,8 @@ def test_delete_creator_reassigns_to_remaining_member(client, session):
 
 
 def test_delete_non_creator_does_not_change_creator(client, session):
-    creator, tok_c, _ = auth_helper(client, session, "no_reassign_creator")
-    member, tok_m, _ = auth_helper(client, session, "no_reassign_member")
+    creator, tok_c, _ = auth_helper(client, session, "noreassigncreator")
+    member, tok_m, _ = auth_helper(client, session, "noreassignmember")
     _b64 = base64.b64encode(b"\x08" * 32).decode()
     grp_resp = client.post(
         "/api/v1/groups/",

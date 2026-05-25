@@ -297,8 +297,8 @@ def test_refresh_token_scoped_to_issuing_user(client, session):
 
 
 def test_delete_me_cannot_delete_other_user(client, session):
-    user_a, tok_a, _ = auth_helper(client, session, "ac_dela")
-    user_b, tok_b, _ = auth_helper(client, session, "ac_delb")
+    user_a, tok_a, _ = auth_helper(client, session, "acdela")
+    user_b, tok_b, _ = auth_helper(client, session, "acdelb")
     client.delete(
         "/api/v1/auth/me",
         headers={"Authorization": "Bearer %s" % tok_a},
@@ -308,7 +308,7 @@ def test_delete_me_cannot_delete_other_user(client, session):
 
 
 def test_delete_me_deleted_user_cannot_access_any_endpoint(client, session):
-    user, tok, _ = auth_helper(client, session, "ac_noaccess")
+    user, tok, _ = auth_helper(client, session, "acnoaccess")
     client.delete("/api/v1/auth/me", headers={"Authorization": "Bearer %s" % tok})
     for path in [
         "/api/v1/messages/",

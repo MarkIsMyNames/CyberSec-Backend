@@ -115,7 +115,7 @@ def test_one_time_prekey_consumed_on_fetch(client, session):
 
 
 def test_delete_me_token_cannot_be_replayed(client, session):
-    user, tok, _ = auth_helper(client, session, "replay_del")
+    user, tok, _ = auth_helper(client, session, "replaydel")
     client.delete("/api/v1/auth/me", headers={"Authorization": "Bearer %s" % tok})
     resp = client.delete(
         "/api/v1/auth/me", headers={"Authorization": "Bearer %s" % tok}
@@ -124,7 +124,7 @@ def test_delete_me_token_cannot_be_replayed(client, session):
 
 
 def test_refresh_token_cannot_be_replayed_after_rotation(client, session):
-    _, _, tokens = auth_helper(client, session, "replay_ref")
+    _, _, tokens = auth_helper(client, session, "replayref")
     old_refresh = tokens["refresh_token"]
     client.post("/api/v1/auth/refresh", json={"refresh_token": old_refresh})
     resp = client.post("/api/v1/auth/refresh", json={"refresh_token": old_refresh})

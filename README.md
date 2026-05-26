@@ -61,11 +61,21 @@ The script will prompt for the following values and auto-generate them with `ope
 | `DATABASE_URL` | Auto-generated — PostgreSQL installed and configured locally |
 | `SERVER_MASTER_SECRET` | Auto-generated (`openssl rand -hex 32`) |
 | `JWT_SECRET_KEY` | Auto-generated (`openssl rand -base64 48`) |
-| `RPC_URL` | Defaults to `https://rpc.sepolia.org` (public, no API key needed); auto-filled from Vault on subsequent runs |
-| `WALLET_PRIVATE_KEY` | Auto-generated — a fresh Sepolia wallet is created; fund it with Sepolia ETH from the faucet printed at the end |
+| `RPC_URL` | Defaults to `https://ethereum-sepolia-rpc.publicnode.com` (public, no API key needed) |
+| `WALLET_PRIVATE_KEY` | Auto-generated — a fresh Sepolia wallet is created; fund it with Sepolia ETH from [sepolia-faucet.pk910.de](https://sepolia-faucet.pk910.de) |
 | `CONTRACT_ADDRESS` | Auto-deployed by `start.sh` on first run; stored in and retrieved from Vault thereafter |
 
 At the end, the script prints the Vault **unseal key**, **root token**, and **`VAULT_DEPLOY_TOKEN`** — save these. The unseal key is needed after every reboot.
+
+### Resetting the Server
+
+To tear down everything `start.sh` set up and start fresh:
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/MarkIsMyNames/CyberSec-Backend/main/remove.sh)
+```
+
+This stops and removes all services, Vault data, PostgreSQL user and database, audit rules, and the repository. You will be prompted to confirm before anything is deleted.
 
 ### After Every VM Reboot
 

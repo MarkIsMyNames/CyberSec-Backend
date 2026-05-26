@@ -45,6 +45,9 @@ class SQLMessageRepository:
             .returning(Message.id)
         ).scalar()
         if msg_id is None:
+            logger.warning(
+                "store_message rejected — inbox full recipient_id=%d", recipient_id
+            )
             raise OverflowError("inbox full recipient_id=%d" % recipient_id)
         self._session.commit()
         logger.info(

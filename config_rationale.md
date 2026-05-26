@@ -33,9 +33,16 @@
 
 | Key | Value | Rationale |
 |-----|-------|-----------|
-| `auth_per_minute` | `10` | Strict limit on login/register to slow credential stuffing and brute-force attacks |
-| `messages_per_minute` | `60` | Allows normal messaging activity while preventing spam floods |
-| `default_per_minute` | `120` | Permissive default for non-sensitive endpoints |
+| `auth` | `30/minute` | Per-user cap on login/register; strict enough to slow credential stuffing, tripled from 10 to reduce friction for legitimate clients |
+| `refresh` | `60/minute` | Per-user cap on token refresh; headroom for background refresh without being overly restrictive |
+| `logout` | `15/minute` | Per-user cap on logout; low-traffic endpoint, tripled from 5 |
+| `messages` | `90/minute` | Per-user cap on message sends; allows bursty but normal usage |
+| `keys` | `90/minute` | Per-user cap on key operations |
+| `groups` | `45/minute` | Per-user cap on group operations |
+| `ip_messages` | `450/minute` | Per-IP cap on message sends; shared budget across all users on an IP |
+| `ip_keys` | `450/minute` | Per-IP cap on key operations |
+| `ip_groups` | `225/minute` | Per-IP cap on group operations |
+| `ip_auth` | `150/minute` | Per-IP cap on auth endpoints; backstop against distributed brute-force |
 
 ## server
 

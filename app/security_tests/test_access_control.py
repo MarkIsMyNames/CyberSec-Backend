@@ -2,6 +2,7 @@ import base64
 from http import HTTPStatus
 
 from app.security_tests.test_helper import auth_helper
+from app.repositories.user import SQLUserRepository
 
 
 def test_user_cannot_read_others_messages(client, session):
@@ -293,3 +294,26 @@ def test_refresh_token_scoped_to_issuing_user(client, session):
         headers={"Authorization": "Bearer %s" % new_tok},
     ).json()
     assert isinstance(msgs, list)
+
+
+def test_delete_me_cannot_delete_other_user(client, session):
+    user_a, tok_a, _ = auth_helper(client, session, "acdela")
+    user_b, tok_b, _ = auth_helper(client, session, "acdelb")
+    client.delete(
+        "/api/v1/auth/me",
+        headers={"Authorization": "Bearer %s" % tok_a},
+    )
+    repo = SQLUserRepository(session)
+    assert repo.get_user_by_id(user_b.id) is not None
+
+
+def test_delete_me_deleted_user_cannot_access_any_endpoint(client, session):
+    user, tok, _ = auth_helper(client, session, "acnoaccess")
+    client.delete("/api/v1/auth/me", headers={"Authorization": "Bearer %s" % tok})
+    for path in [
+        "/api/v1/messages/",
+        "/api/v1/keys/prekeys/count",
+        "/api/v1/groups/",
+    ]:
+        resp = client.get(path, headers={"Authorization": "Bearer %s" % tok})
+        assert resp.status_code == HTTPStatus.UNAUTHORIZED, "Expected 401 on %s" % path

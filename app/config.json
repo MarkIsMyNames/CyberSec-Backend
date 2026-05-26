@@ -17,15 +17,16 @@
     "jwt_algorithm": "HS256"
   },
   "rate_limits": {
-    "auth": "10/minute",
-    "refresh": "20/minute",
-    "logout": "5/minute",
-    "messages": "30/minute",
-    "keys": "30/minute",
-    "groups": "15/minute",
-    "ip_messages": "150/minute",
-    "ip_keys": "150/minute",
-    "ip_groups": "75/minute"
+    "auth": "30/minute",
+    "refresh": "60/minute",
+    "logout": "15/minute",
+    "messages": "90/minute",
+    "keys": "90/minute",
+    "groups": "45/minute",
+    "ip_messages": "450/minute",
+    "ip_keys": "450/minute",
+    "ip_groups": "225/minute",
+    "ip_auth": "150/minute"
   },
   "messaging": {
     "inbox_max_messages": 50000,

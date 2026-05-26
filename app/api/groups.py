@@ -2,6 +2,8 @@ import base64
 from http import HTTPStatus
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response
+from slowapi.util import get_remote_address
+from sqlalchemy.exc import IntegrityError
 
 from app.api.deps import get_current_user, require_group_member
 from app.auth.rate_limit import (
@@ -9,7 +11,6 @@ from app.auth.rate_limit import (
     ip_group_limit,
     ip_messages_limit,
     messages_limit,
-    ip_limiter,
     limiter,
 )
 from app.dependencies import repo_dep
@@ -37,7 +38,7 @@ router = APIRouter()
 
 @router.get("/", response_model=GroupListResponse)
 @limiter.limit(group_limit)
-@ip_limiter.limit(ip_group_limit)
+@limiter.limit(ip_group_limit, key_func=get_remote_address)
 async def list_groups(
     request: Request,
     current_user: User = Depends(get_current_user),
@@ -60,7 +61,7 @@ async def list_groups(
 
 @router.post("/", response_model=CreateGroupResponse, status_code=HTTPStatus.CREATED)
 @limiter.limit(group_limit)
-@ip_limiter.limit(ip_group_limit)
+@limiter.limit(ip_group_limit, key_func=get_remote_address)
 async def create_group(
     request: Request,
     body: CreateGroupRequest,
@@ -86,7 +87,7 @@ async def create_group(
 
 @router.get("/{group_id}", response_model=GroupResponse)
 @limiter.limit(group_limit)
-@ip_limiter.limit(ip_group_limit)
+@limiter.limit(ip_group_limit, key_func=get_remote_address)
 async def get_group_info(
     request: Request,
     group_id: int,
@@ -101,7 +102,7 @@ async def get_group_info(
 
 @router.post("/{group_id}/members", status_code=HTTPStatus.NO_CONTENT)
 @limiter.limit(group_limit)
-@ip_limiter.limit(ip_group_limit)
+@limiter.limit(ip_group_limit, key_func=get_remote_address)
 async def add_member(
     request: Request,
     body: AddMemberRequest,
@@ -121,13 +122,15 @@ async def add_member(
             body.user_id,
         )
         raise HTTPException(status_code=HTTPStatus.FORBIDDEN, detail=str(exc))
+    except IntegrityError:
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="user not found")
     logger.info("member added group_id=%d user_id=%d", group.id, body.user_id)
     return Response(status_code=HTTPStatus.NO_CONTENT)
 
 
 @router.delete("/{group_id}/members/{user_id}", status_code=HTTPStatus.NO_CONTENT)
 @limiter.limit(group_limit)
-@ip_limiter.limit(ip_group_limit)
+@limiter.limit(ip_group_limit, key_func=get_remote_address)
 async def remove_member(
     request: Request,
     user_id: int,
@@ -165,7 +168,7 @@ async def remove_member(
     status_code=HTTPStatus.CREATED,
 )
 @limiter.limit(messages_limit)
-@ip_limiter.limit(ip_messages_limit)
+@limiter.limit(ip_messages_limit, key_func=get_remote_address)
 async def send_group_message(
     request: Request,
     body: SendGroupMessageRequest,
@@ -187,7 +190,7 @@ async def send_group_message(
 
 @router.get("/{group_id}/messages", response_model=list[GroupMessageResponse])
 @limiter.limit(messages_limit)
-@ip_limiter.limit(ip_messages_limit)
+@limiter.limit(ip_messages_limit, key_func=get_remote_address)
 async def list_group_messages(
     request: Request,
     group: Group = Depends(require_group_member),
@@ -208,7 +211,7 @@ async def list_group_messages(
 
 @router.delete("/{group_id}/messages/{msg_id}", status_code=HTTPStatus.NO_CONTENT)
 @limiter.limit(messages_limit)
-@ip_limiter.limit(ip_messages_limit)
+@limiter.limit(ip_messages_limit, key_func=get_remote_address)
 async def revoke_group_message(
     request: Request,
     msg_id: int,
@@ -237,7 +240,7 @@ async def revoke_group_message(
 
 @router.post("/{group_id}/messages/{msg_id}/receipt", status_code=HTTPStatus.NO_CONTENT)
 @limiter.limit(messages_limit)
-@ip_limiter.limit(ip_messages_limit)
+@limiter.limit(ip_messages_limit, key_func=get_remote_address)
 async def record_group_message_receipt(
     request: Request,
     msg_id: int,
@@ -257,7 +260,7 @@ async def record_group_message_receipt(
 
 @router.post("/{group_id}/skdm", status_code=HTTPStatus.NO_CONTENT)
 @limiter.limit(messages_limit)
-@ip_limiter.limit(ip_messages_limit)
+@limiter.limit(ip_messages_limit, key_func=get_remote_address)
 async def send_skdms(
     request: Request,
     body: SendSKDMRequest,
@@ -273,7 +276,7 @@ async def send_skdms(
 
 @router.get("/{group_id}/skdm", response_model=SKDMResponse)
 @limiter.limit(messages_limit)
-@ip_limiter.limit(ip_messages_limit)
+@limiter.limit(ip_messages_limit, key_func=get_remote_address)
 async def pop_skdms(
     request: Request,
     group: Group = Depends(require_group_member),

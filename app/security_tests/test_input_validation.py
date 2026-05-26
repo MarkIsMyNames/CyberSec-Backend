@@ -1,6 +1,8 @@
 import base64
+import time
 from http import HTTPStatus
 
+import jwt as pyjwt
 import srp
 
 from app.security_tests.test_helper import auth_helper
@@ -383,3 +385,34 @@ def test_key_bundle_missing_required_field_rejected(client, session):
         "/api/v1/keys/bundle", json=bundle, headers={"Authorization": "Bearer %s" % tok}
     )
     assert resp.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+
+
+def test_delete_me_malformed_jwt_structure(client):
+    resp = client.delete(
+        "/api/v1/auth/me",
+        headers={"Authorization": "Bearer not.even.close"},
+    )
+    assert resp.status_code == HTTPStatus.UNAUTHORIZED
+
+
+def test_delete_me_tampered_payload(client, session):
+    user, _, _ = auth_helper(client, session, "ivtamper")
+    fake_token = pyjwt.encode(
+        {"sub": str(user.id), "scope": "full", "exp": int(time.time()) + 900},
+        "wrong_secret_key",
+        algorithm="HS256",
+    )
+    resp = client.delete(
+        "/api/v1/auth/me",
+        headers={"Authorization": "Bearer %s" % fake_token},
+    )
+    assert resp.status_code == HTTPStatus.UNAUTHORIZED
+
+
+def test_delete_me_wrong_scope_token(client, session):
+    user, _, tokens = auth_helper(client, session, "ivscope")
+    resp = client.delete(
+        "/api/v1/auth/me",
+        headers={"Authorization": "Bearer %s" % tokens["refresh_token"]},
+    )
+    assert resp.status_code == HTTPStatus.UNAUTHORIZED

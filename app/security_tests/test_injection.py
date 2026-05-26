@@ -108,3 +108,21 @@ def test_oversized_username_does_not_crash(client):
         },
     )
     assert resp.status_code != HTTPStatus.INTERNAL_SERVER_ERROR
+
+
+def test_delete_me_sql_injection_in_token(client):
+    resp = client.delete(
+        "/api/v1/auth/me",
+        headers={"Authorization": "Bearer ' OR '1'='1"},
+    )
+    assert resp.status_code == HTTPStatus.UNAUTHORIZED
+    assert resp.status_code != HTTPStatus.INTERNAL_SERVER_ERROR
+
+
+def test_delete_me_null_bytes_in_token(client):
+    resp = client.delete(
+        "/api/v1/auth/me",
+        headers={"Authorization": "Bearer \x00\x00\x00"},
+    )
+    assert resp.status_code == HTTPStatus.UNAUTHORIZED
+    assert resp.status_code != HTTPStatus.INTERNAL_SERVER_ERROR

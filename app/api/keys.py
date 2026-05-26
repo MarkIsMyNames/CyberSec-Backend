@@ -2,9 +2,10 @@ import base64
 from http import HTTPStatus
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from slowapi.util import get_remote_address
 
 from app.api.deps import get_current_user
-from app.auth.rate_limit import ip_keys_limit, keys_limit, ip_limiter, limiter
+from app.auth.rate_limit import ip_keys_limit, keys_limit, limiter
 from app.dependencies import repo_dep
 from app.models.user import User
 from app.logger import logger
@@ -23,7 +24,7 @@ router = APIRouter()
 
 @router.post("/bundle", status_code=HTTPStatus.NO_CONTENT)
 @limiter.limit(keys_limit)
-@ip_limiter.limit(ip_keys_limit)
+@limiter.limit(ip_keys_limit, key_func=get_remote_address)
 async def publish_bundle(
     request: Request,
     body: KeyBundleUpload,
@@ -49,7 +50,7 @@ async def publish_bundle(
 
 @router.post("/prekeys", status_code=HTTPStatus.NO_CONTENT)
 @limiter.limit(keys_limit)
-@ip_limiter.limit(ip_keys_limit)
+@limiter.limit(ip_keys_limit, key_func=get_remote_address)
 async def upload_prekeys(
     request: Request,
     body: UploadOneTimePreKeysRequest,
@@ -67,7 +68,7 @@ async def upload_prekeys(
 
 @router.get("/prekeys/count", response_model=OneTimePreKeyCountResponse)
 @limiter.limit(keys_limit)
-@ip_limiter.limit(ip_keys_limit)
+@limiter.limit(ip_keys_limit, key_func=get_remote_address)
 async def get_prekey_count(
     request: Request,
     current_user: User = Depends(get_current_user),
@@ -84,7 +85,7 @@ async def get_prekey_count(
     dependencies=[Depends(get_current_user)],
 )
 @limiter.limit(keys_limit)
-@ip_limiter.limit(ip_keys_limit)
+@limiter.limit(ip_keys_limit, key_func=get_remote_address)
 async def lookup_identity_pub_by_username(
     request: Request,
     username: str = Query(),
@@ -109,7 +110,7 @@ async def lookup_identity_pub_by_username(
     dependencies=[Depends(get_current_user)],
 )
 @limiter.limit(keys_limit)
-@ip_limiter.limit(ip_keys_limit)
+@limiter.limit(ip_keys_limit, key_func=get_remote_address)
 async def fetch_bundle(
     request: Request,
     user_id: int,

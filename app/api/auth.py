@@ -1,10 +1,17 @@
 from http import HTTPStatus
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from slowapi.util import get_remote_address
 
-from app.api.deps import require_preauth_user, require_valid_refresh
+from app.api.deps import get_current_user, require_preauth_user, require_valid_refresh
 from app.auth.tokens import TokenClaims
-from app.auth.rate_limit import auth_limit, logout_limit, refresh_limit, limiter
+from app.auth.rate_limit import (
+    auth_limit,
+    ip_auth_limit,
+    logout_limit,
+    refresh_limit,
+    limiter,
+)
 from app.auth.srp_session import srp_init, srp_verify
 from app.auth.tokens import (
     issue_access_token,
@@ -45,7 +52,7 @@ router = APIRouter()
 @router.post(
     "/register", response_model=RegisterResponse, status_code=HTTPStatus.CREATED
 )
-@limiter.limit(auth_limit)
+@limiter.limit(ip_auth_limit, key_func=get_remote_address)
 async def register(
     request: Request,
     body: RegisterRequest,
@@ -67,7 +74,7 @@ async def register(
 
 
 @router.post("/srp-init", response_model=SRPInitResponse)
-@limiter.limit(auth_limit)
+@limiter.limit(ip_auth_limit, key_func=get_remote_address)
 async def srp_init_endpoint(
     request: Request,
     body: SRPInitRequest,
@@ -103,7 +110,7 @@ async def srp_init_endpoint(
 
 
 @router.post("/srp-verify", response_model=SRPVerifyResponse)
-@limiter.limit(auth_limit)
+@limiter.limit(ip_auth_limit, key_func=get_remote_address)
 async def srp_verify_endpoint(
     request: Request,
     body: SRPVerifyRequest,
@@ -137,6 +144,7 @@ async def srp_verify_endpoint(
 
 @router.post("/verify-2fa", response_model=TokenResponse)
 @limiter.limit(auth_limit)
+@limiter.limit(ip_auth_limit, key_func=get_remote_address)
 async def verify_2fa(
     request: Request,
     body: VerifyTOTPRequest,
@@ -159,6 +167,7 @@ async def verify_2fa(
 
 @router.post("/refresh", response_model=TokenResponse)
 @limiter.limit(refresh_limit)
+@limiter.limit(ip_auth_limit, key_func=get_remote_address)
 async def refresh_tokens(
     request: Request,
     claims: TokenClaims = Depends(require_valid_refresh),
@@ -172,9 +181,26 @@ async def refresh_tokens(
 
 @router.post("/logout", status_code=HTTPStatus.NO_CONTENT)
 @limiter.limit(logout_limit)
+@limiter.limit(ip_auth_limit, key_func=get_remote_address)
 async def logout(
     request: Request,
     claims: TokenClaims = Depends(require_valid_refresh),
 ) -> Response:
     logger.info("logout success user_id=%d", int(claims["sub"]))
+    return Response(status_code=HTTPStatus.NO_CONTENT)
+
+
+@router.delete("/me", status_code=HTTPStatus.NO_CONTENT)
+@limiter.limit(auth_limit)
+@limiter.limit(ip_auth_limit, key_func=get_remote_address)
+async def delete_me(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    repo: SQLUserRepository = Depends(repo_dep(SQLUserRepository)),
+) -> Response:
+    if not repo.delete_user(current_user.id):
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="User not found")
+    logger.info(
+        "account deleted user_id=%d ip=%s", current_user.id, _client_ip(request)
+    )
     return Response(status_code=HTTPStatus.NO_CONTENT)

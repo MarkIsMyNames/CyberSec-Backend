@@ -46,8 +46,9 @@ else
     DB_PASS=$(openssl rand -hex 16)
     sudo -u postgres psql -c "CREATE USER $APP WITH PASSWORD '$DB_PASS';"
 fi
-sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='$APP'" | grep -q 1 \
-    || sudo -u postgres psql -c "CREATE DATABASE $APP OWNER $APP;"
+if ! sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='$APP'" | grep -q 1; then
+    sudo -u postgres psql -c "CREATE DATABASE $APP OWNER $APP;"
+fi
 DATABASE_URL="postgresql://$APP:$DB_PASS@localhost/$APP"
 info "PostgreSQL ready."
 
@@ -127,10 +128,8 @@ else
     info "Vault initialised and unsealed."
 fi
 
-vault audit list 2>/dev/null | grep -q "file/" \
-    || vault audit enable file file_path=/var/log/vault/audit.log
-vault secrets list 2>/dev/null | grep -q "secret/" \
-    || vault secrets enable -path=secret kv-v2
+vault audit list 2>/dev/null | grep -q "file/" || vault audit enable file file_path=/var/log/vault/audit.log
+vault secrets list 2>/dev/null | grep -q "secret/" || vault secrets enable -path=secret kv-v2
 
 # ─── Secrets ──────────────────────────────────
 section "Storing secrets"

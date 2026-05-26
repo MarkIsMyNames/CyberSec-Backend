@@ -143,8 +143,12 @@ vault secrets list 2>/dev/null | grep -q "secret/" || vault secrets enable -path
 if [ "$ROLE_EXISTS" = true ]; then
     info "Reading database password from Vault..."
     DB_PASS=$(vault kv get -field=DATABASE_URL secret/$APP/prod 2>/dev/null \
-        | grep -oP '(?<=://'"$APP"':)[^@]+')
-    [ -n "$DB_PASS" ] || die "Role $APP exists but could not read password from Vault."
+        | grep -oP '(?<=://'"$APP"':)[^@]+' || true)
+    if [ -z "$DB_PASS" ]; then
+        info "No existing secret found — generating new password and updating role..."
+        DB_PASS=$(openssl rand -hex 16)
+        sudo -u postgres psql -c "ALTER USER $APP WITH PASSWORD '$DB_PASS';"
+    fi
 fi
 DATABASE_URL="postgresql://$APP:$DB_PASS@localhost/$APP"
 

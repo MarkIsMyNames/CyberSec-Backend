@@ -180,6 +180,18 @@ Revoke a refresh token.
 
 ---
 
+#### `DELETE /auth/me`
+
+Delete the authenticated user's own account and all associated data.
+
+On deletion: the user record is removed; all messages sent by or addressed to the user are deleted; all group memberships are removed (the group itself is deleted if the user was the last member); all key bundles and prekeys are deleted. The access token is immediately invalidated — subsequent requests with the same token return `401`.
+
+**Response `204`:** No content.
+
+**Errors:** `401` — missing, invalid, or expired access token, or user already deleted. `429` — rate limit exceeded.
+
+---
+
 ### Keys
 
 #### `POST /keys/bundle`
@@ -567,7 +579,7 @@ Authorised by identity: the server checks `sender_id` matches the authenticated 
 
 ### TLS and Security Headers
 
-TLS 1.3 terminated at the gateway. HSTS (`max-age=63072000; includeSubDomains`) set on all responses. Security headers injected at the ASGI layer so they are present on all responses including FastAPI error responses:
+TLS 1.2/1.3 terminated at the gateway. HSTS (`max-age=63072000; includeSubDomains`) set on all responses. Security headers injected at the ASGI layer so they are present on all responses including FastAPI error responses:
 
 | Header | Value | Why |
 |---|---|---|
@@ -653,3 +665,27 @@ coverage report --fail-under=95
 ```bash
 pytest app/security_tests/ -v
 ```
+
+### Integration tests
+
+Live integration tests run against the deployed server and require no local database or environment variables.
+
+```bash
+pytest tests/integration/ -v --tb=short
+```
+
+The suite registers a temporary user via the full SRP+TOTP flow, exercises every endpoint, then deletes the user at teardown. Rate-limited requests are automatically retried using the `Retry-After` header. All connections enforce TLS 1.2 or higher — the test suite fails if the server cannot negotiate at least TLS 1.2.
+
+---
+
+## Deploy Pipeline
+
+Every push to `main` triggers the deploy-and-test workflow (`.github/workflows/deploy.yml`):
+
+1. **Deploy job** — SSHes into the VM at `200.69.13.70:2206`, pulls the latest code via `git pull --ff-only`, reinstalls Python dependencies only when `requirements.txt` has changed (hash cached at `~/.cache/securemsg_dep_hash`), restarts the `securemsg` systemd service (starts it if not already running), then polls `https://BobbyTables.theburkenator.com/health` every 2s for up to 60s. The job fails if the health check does not return `200 OK` within that window.
+
+2. **Test job** — Runs only after the deploy job succeeds. Checks out the repo, installs `requirements.txt`, and runs `pytest tests/integration/` against the live server.
+
+**Required GitHub secret:** `VM_SSH_KEY` — the private SSH key for the deployment VM.
+
+Run results are visible in the **Actions** tab of the repository.

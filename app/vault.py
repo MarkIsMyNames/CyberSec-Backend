@@ -19,9 +19,11 @@ def read_vault_kv(path: str) -> dict[str, str]:
         client = hvac.Client(url=addr)
         client.auth.approle.login(role_id=role_id, secret_id=secret_id)
         result = client.secrets.kv.v2.read_secret_version(
-            path=path, mount_point=vault_cfg["mount_point"],
+            path=path,
+            mount_point=vault_cfg["mount_point"],
         )
-        return result["data"]["data"]
+        data: dict[str, str] = result["data"]["data"]
+        return data
     except Exception as exc:
         raise RuntimeError("Vault secret fetch failed: %s" % exc) from exc
 

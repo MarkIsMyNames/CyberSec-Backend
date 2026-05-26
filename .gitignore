@@ -55,6 +55,12 @@ htmlcov/
 .DS_Store
 Thumbs.db
 
+# Node / Hardhat
+node_modules/
+artifacts/
+cache/
+typechain-types/
+
 # Worktrees
 .worktrees/
 

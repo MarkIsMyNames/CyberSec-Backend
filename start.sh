@@ -237,14 +237,17 @@ print(Account.from_key('$WALLET_PRIVATE_KEY').address)
 ")
     section "Fund wallet"
     echo -e "  Address : ${YELLOW}$WALLET_ADDRESS${RESET}"
-    echo -e "  Faucet  : https://faucets.chain.link/sepolia"
+    echo -e "  Faucet  : https://sepolia-faucet.pk910.de"
     echo ""
     read -r -p "Press Enter once funded..."
-    command -v node &>/dev/null || {
-        curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - > /dev/null 2>&1
+    if ! command -v node &>/dev/null; then
+        info "Installing Node.js..."
+        curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
         sudo apt-get install -y -qq nodejs
-    }
-    npm install --silent
+    fi
+    info "Installing npm dependencies..."
+    npm install
+    info "Deploying contract..."
     DEPLOY_OUTPUT=$(VAULT_ADDR="$VAULT_ADDR" VAULT_ROLE_ID="$ROLE_ID" VAULT_SECRET_ID="$SECRET_ID" \
         npm run deploy 2>&1)
     CONTRACT_ADDRESS=$(echo "$DEPLOY_OUTPUT" | grep -oP '(?<=AuditLog deployed to: )0x[0-9a-fA-F]+')

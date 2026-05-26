@@ -278,6 +278,7 @@ RestartSec=5
 TimeoutStartSec=30
 NoNewPrivileges=yes
 PrivateTmp=yes
+AmbientCapabilities=CAP_NET_BIND_SERVICE
 
 [Install]
 WantedBy=multi-user.target
@@ -301,7 +302,6 @@ RestartSec=10
 [Install]
 WantedBy=multi-user.target
 UNIT
-sudo setcap 'cap_net_bind_service=+ep' "$(readlink -f "$VENV_DIR/bin/uvicorn")"
 sudo systemctl daemon-reload
 sudo systemctl enable $APP audit-watcher --quiet
 info "Services created."

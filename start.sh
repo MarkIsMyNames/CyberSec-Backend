@@ -242,16 +242,17 @@ print(Account.from_key('$WALLET_PRIVATE_KEY').address)
     read -r -p "Press Enter once funded..."
     if ! command -v node &>/dev/null; then
         info "Installing Node.js..."
-        curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+        curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - > /dev/null
         sudo apt-get install -y -qq nodejs
     fi
     info "Installing npm dependencies..."
     npm install
     info "Deploying contract..."
     DEPLOY_OUTPUT=$(VAULT_ADDR="$VAULT_ADDR" VAULT_ROLE_ID="$ROLE_ID" VAULT_SECRET_ID="$SECRET_ID" \
-        npm run deploy 2>&1)
+        npm run deploy 2>&1) || true
+    echo "$DEPLOY_OUTPUT"
     CONTRACT_ADDRESS=$(echo "$DEPLOY_OUTPUT" | grep -oP '(?<=AuditLog deployed to: )0x[0-9a-fA-F]+')
-    [ -n "$CONTRACT_ADDRESS" ] || { echo "$DEPLOY_OUTPUT" >&2; die "Could not parse contract address."; }
+    [ -n "$CONTRACT_ADDRESS" ] || { die "Could not parse contract address."; }
     vault kv patch secret/$APP/blockchain CONTRACT_ADDRESS="$CONTRACT_ADDRESS" > /dev/null
     info "Contract deployed to $CONTRACT_ADDRESS."
 fi

@@ -81,7 +81,10 @@ sudo chmod 750 /etc/vault /var/lib/vault /var/log/vault
 sudo tee /etc/vault/config.hcl > /dev/null <<'HCL'
 ui = false
 storage "file" { path = "/var/lib/vault/data" }
-listener "tcp" { address = "127.0.0.1:8200"; tls_disable = true }
+listener "tcp" {
+  address   = "127.0.0.1:8200"
+  tls_disable = true
+}
 api_addr = "http://127.0.0.1:8200"
 HCL
 sudo chown vault:vault /etc/vault/config.hcl

@@ -41,6 +41,10 @@ jobs:
               mkdir -p "$(dirname "$STATE_FILE")"
               echo "$DEP_HASH" > "$STATE_FILE"
             fi
+            echo "--- rotate jwt secret"
+            NEW_JWT="$(openssl rand -base64 48)"
+            sed -i "s|^JWT_SECRET_KEY=.*|JWT_SECRET_KEY=$NEW_JWT|" /home/student/CyberSec-Backend/.env
+
             echo "--- systemctl"
             sudo systemctl stop securemsg 2>/dev/null || true
             sudo systemctl start securemsg

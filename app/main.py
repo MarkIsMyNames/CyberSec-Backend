@@ -11,10 +11,12 @@ from app.auth.rate_limit import limiter
 from app.database import init_db
 from app.logger import logger
 from app.middleware.security import SecurityHeadersMiddleware
+from app.vault import load_secrets
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
+    load_secrets()
     init_db()
     yield
 

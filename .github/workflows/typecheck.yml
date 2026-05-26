@@ -5,7 +5,7 @@ on:
   pull_request:
     branches: [main]
 jobs:
-  typecheck:
+  typecheck-python:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -14,3 +14,14 @@ jobs:
           python-version: "3.13"
       - run: pip install -r requirements.txt
       - run: mypy --explicit-package-bases app/
+
+  typecheck-typescript:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - run: npm install
+      - run: npm run typecheck

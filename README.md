@@ -31,30 +31,66 @@ A FastAPI backend for Signal-protocol end-to-end encrypted messaging with post-q
 pip install -r requirements.txt
 ```
 
-### Environment Variables
+### Local Development
 
-| Variable | Description |
-|---|---|
-| `SERVER_MASTER_SECRET` | 64-hex-char string (32 bytes); master key for HKDF derivations |
-| `JWT_SECRET_KEY` | Random string for JWT signing (≥32 chars recommended); automatically rotated on every deploy — all active sessions are invalidated on each push |
-| `DATABASE_URL` | PostgreSQL connection string, e.g. `postgresql://user:pass@localhost/securemsg` |
-
-Copy `.env.example` to `.env` and fill in values. Load with `export $(cat .env | xargs)` before running or running tests.
-
-### Run
-
-#### Local development
+For local development, export the three secrets directly in your shell. Do not create a `.env` file.
 
 ```bash
-uvicorn app.main:app --host 127.0.0.1 --port 8000
+export SERVER_MASTER_SECRET=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+export JWT_SECRET_KEY=dev_jwt_secret_key
+export DATABASE_URL=postgresql://user:pass@localhost/securemsg
+uvicorn app.main:application --host 127.0.0.1 --port 8000
 ```
 
-#### Production
+---
 
-The API is publicly accessible at **https://BobbyTables.theburkenator.com**. TLS is terminated at the gateway (Let's Encrypt, A+ rated). The app only needs to listen on port 80 over plain HTTP on the internal network:
+## VM Setup (Production)
+
+All production secrets are managed by HashiCorp Vault. There is no `.env` file on the server.
+
+Run `start.sh` to set up the server. It handles everything: Vault installation, initialisation, AppRole configuration, secret storage, smart contract deployment, auditd canary rules, and all systemd services.
 
 ```bash
-uvicorn app.main:app --host 0.0.0.0 --port 80
+bash <(curl -fsSL https://raw.githubusercontent.com/MarkIsMyNames/CyberSec-Backend/main/start.sh)
+```
+
+The script will prompt for the following values and auto-generate them with `openssl` if left blank:
+
+| Value | Source |
+|---|---|
+| `DATABASE_URL` | Auto-generated — PostgreSQL installed and configured locally |
+| `SERVER_MASTER_SECRET` | Auto-generated (`openssl rand -hex 32`) |
+| `JWT_SECRET_KEY` | Auto-generated (`openssl rand -base64 48`) |
+| `RPC_URL` | Defaults to `https://rpc.sepolia.org` (public, no API key needed); auto-filled from Vault on subsequent runs |
+| `WALLET_PRIVATE_KEY` | Auto-generated — a fresh Sepolia wallet is created; fund it with Sepolia ETH from the faucet printed at the end |
+| `CONTRACT_ADDRESS` | Auto-deployed by `start.sh` on first run; stored in and retrieved from Vault thereafter |
+
+At the end, the script prints the Vault **unseal key**, **root token**, and **`VAULT_DEPLOY_TOKEN`** — save these. The unseal key is needed after every reboot.
+
+### After Every VM Reboot
+
+Vault seals itself on reboot. Unseal before the services will start:
+
+```bash
+export VAULT_ADDR='http://127.0.0.1:8200'
+vault operator unseal <your-unseal-key>
+sudo systemctl start securemsg
+sudo systemctl start audit-watcher
+```
+
+### Viewing Audit Events
+
+Every access to the canary `.env` or Vault credentials file is recorded on Sepolia as an immutable `SecretAccess` event.
+
+**On-chain:** go to [sepolia.etherscan.io](https://sepolia.etherscan.io), search your contract address, click the **Logs** tab. Each entry shows:
+- `eventHash` — `keccak256(path, principal, agent)` computed off-chain — tamper-evident without exposing raw values
+- `timestamp` — Unix block timestamp
+- `reporter` — wallet address that submitted the transaction
+
+**Local correlation:**
+
+```bash
+grep "on-chain event submitted" ~/CyberSec-Backend/securemsg.log
 ```
 
 ---
@@ -553,6 +589,10 @@ Current key is the one whose `epoch` is the highest. It won't be known to the re
 
 ## Security Design Decisions
 
+### Secrets Management
+
+There is no `.env` file on the production server. All secrets (`SERVER_MASTER_SECRET`, `JWT_SECRET_KEY`, `DATABASE_URL`) are stored in HashiCorp Vault and fetched at startup via AppRole authentication. The app never writes secrets to disk. A canary `.env` file exists and any read or of the Vault credentials file is detected by auditd and triggers an immutable on-chain event on the Sepolia blockchain via the `AuditLog` smart contract. This gives two layers of protection: prevention (secrets never on disk) and detection (unauthorised reads logged immutably to a public blockchain).
+
 ### Authentication
 
 **Secure Remote Password (SRP-6a)** — zero-knowledge password proof using a 4096-bit group and SHA-256. The server never receives the plaintext password. The client computes `v = g^x mod N` locally; the server stores the encrypted verifier. An attacker must complete a live handshake, which is rate-limited. Both sides exchange mutual proofs (M1/M2), so a compromised server cannot silently accept any password. A MITM cannot silently relay the handshake — they would need to independently solve both halves of the SRP exchange simultaneously.
@@ -682,10 +722,15 @@ The suite registers a temporary user via the full SRP+TOTP flow, exercises every
 
 Every push to `main` triggers the deploy-and-test workflow (`.github/workflows/deploy.yml`):
 
-1. **Deploy job** — SSHes into the VM at `200.69.13.70:2206`, pulls the latest code via `git pull --ff-only`, reinstalls Python dependencies only when `requirements.txt` has changed (hash cached at `~/.cache/securemsg_dep_hash`), rotates `JWT_SECRET_KEY` by generating a fresh secret and updating `/home/student/CyberSec-Backend/.env` (invalidating all active sessions on every deploy), restarts the `securemsg` systemd service, then polls `https://BobbyTables.theburkenator.com/health` every 2s for up to 60s. The job fails if the health check does not return `200 OK` within that window.
+1. **Deploy job** — SSHes into the VM, pulls latest code, reinstalls Python dependencies if `requirements.txt` changed, rotates `JWT_SECRET_KEY` in Vault (invalidating all active sessions), restarts `securemsg`, and polls the `/health` endpoint for up to 60s.
 
-2. **Test job** — Runs only after the deploy job succeeds. Checks out the repo, installs `requirements.txt`, and runs `pytest tests/integration/` against the live server.
+2. **Test job** — Runs after deploy succeeds. Installs dependencies and runs `pytest tests/integration/` against the live server.
 
-**Required GitHub secret:** `VM_SSH_KEY` — the private SSH key for the deployment VM.
+**Required GitHub secrets:**
+
+| Secret | Purpose |
+|---|---|
+| `VM_SSH_KEY` | Private SSH key for the deployment VM |
+| `VAULT_DEPLOY_TOKEN` | Vault token — printed by `start.sh` at setup, used to rotate `JWT_SECRET_KEY` on each deploy |
 
 Run results are visible in the **Actions** tab of the repository.

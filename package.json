@@ -1,0 +1,20 @@
+{
+  "name": "auditlog-deploy",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "deploy": "npx tsx scripts/deploy.mts",
+    "typecheck": "tsc --noEmit"
+  },
+  "overrides": {
+    "ws": "^8.21.0",
+    "tmp": "^0.2.4"
+  },
+  "devDependencies": {
+    "ethers": "^6.16.0",
+    "solc": "^0.8.28",
+    "tsx": "^4.19.2",
+    "typescript": "^5.4.5"
+  }
+}

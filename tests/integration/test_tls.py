@@ -23,12 +23,12 @@ class TestTLS:
                 assert ssock.version() in ("TLSv1.2", "TLSv1.3")
 
     def test_certificate_valid(self, client: httpx.Client):
-        resp = req(client, "GET", "/api/v1/auth/register", json={})
-        assert resp.status_code != 0
+        resp = req(client, "GET", "/health")
+        assert resp.status_code == http.HTTPStatus.OK
 
     def test_http_not_2xx(self):
         with httpx.Client(follow_redirects=False, timeout=10.0) as plain:
-            resp = plain.get("http://BobbyTables.theburkenator.com/api/v1/auth/register")
+            resp = plain.get("http://BobbyTables.theburkenator.com/health")
         assert resp.status_code not in range(200, 300)
 
     def test_security_headers_present(self, client: httpx.Client, auth: dict):

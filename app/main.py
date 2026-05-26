@@ -28,6 +28,11 @@ fastapi.include_router(messages.router, prefix="/api/v1/messages")
 fastapi.include_router(groups.router, prefix="/api/v1/groups")
 
 
+@fastapi.get("/health", status_code=HTTPStatus.OK)
+async def health() -> dict[str, str]:
+    return {"status": "ok"}
+
+
 @fastapi.exception_handler(RateLimitExceeded)
 async def rate_limit_exceeded_handler(
     request: Request, exc: RateLimitExceeded

@@ -103,8 +103,11 @@ def run() -> None:
     if not w3.is_connected():
         logger.error("cannot connect to Sepolia RPC %s", blockchain_cfg["RPC_URL"])
         return
-    contract = w3.eth.contract(address=Web3.to_checksum_address(blockchain_cfg["CONTRACT_ADDRESS"]), abi=abi)
-    account: ChecksumAddress = Web3.to_checksum_address(w3.eth.account.from_key(blockchain_cfg["WALLET_PRIVATE_KEY"]).address)
+    contract_address: ChecksumAddress = Web3.to_checksum_address(blockchain_cfg["CONTRACT_ADDRESS"])
+    contract = w3.eth.contract(address=contract_address, abi=abi)
+    account: ChecksumAddress = Web3.to_checksum_address(
+        w3.eth.account.from_key(blockchain_cfg["WALLET_PRIVATE_KEY"]).address
+    )
     private_key = blockchain_cfg["WALLET_PRIVATE_KEY"]
     logger.info("connected to Sepolia contract=%s account=%s", blockchain_cfg["CONTRACT_ADDRESS"], account)
 

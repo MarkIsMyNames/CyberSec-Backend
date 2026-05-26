@@ -301,8 +301,7 @@ RestartSec=10
 [Install]
 WantedBy=multi-user.target
 UNIT
-#Allow access to low numbered ports (port 80)
-sudo setcap 'cap_net_bind_service=+ep' "$(readlink -f "$VENV_DIR/bin/python3")"
+sudo setcap 'cap_net_bind_service=+ep' "$(readlink -f "$VENV_DIR/bin/uvicorn")"
 sudo systemctl daemon-reload
 sudo systemctl enable $APP audit-watcher --quiet
 info "Services created."

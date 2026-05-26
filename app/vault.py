@@ -2,10 +2,13 @@ import os
 
 import hvac
 
+from app.config import config
 from app.logger import logger
 
+vault_cfg = config["vault"]
 
-def load_secrets() -> None:
+
+def read_vault_kv(path: str) -> dict[str, str]:
     try:
         addr = os.environ["VAULT_ADDR"]
         role_id = os.environ["VAULT_ROLE_ID"]
@@ -16,11 +19,15 @@ def load_secrets() -> None:
         client = hvac.Client(url=addr)
         client.auth.approle.login(role_id=role_id, secret_id=secret_id)
         result = client.secrets.kv.v2.read_secret_version(
-            path="securemsg/prod", mount_point="secret",
+            path=path, mount_point=vault_cfg["mount_point"],
         )
-        data = result["data"]["data"]
+        return result["data"]["data"]
     except Exception as exc:
         raise RuntimeError("Vault secret fetch failed: %s" % exc) from exc
+
+
+def load_secrets() -> None:
+    data = read_vault_kv(vault_cfg["app_secret_path"])
     try:
         os.environ["SERVER_MASTER_SECRET"] = data["SERVER_MASTER_SECRET"]
         os.environ["JWT_SECRET_KEY"] = data["JWT_SECRET_KEY"]

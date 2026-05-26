@@ -170,7 +170,7 @@ fi
 if vault kv get secret/$APP/blockchain &>/dev/null; then
     warn "secret/$APP/blockchain already exists — skipping."
 else
-    RPC_URL=$(ask "Sepolia RPC URL" "echo 'https://rpc.sepolia.org'")
+    RPC_URL=$(ask "Sepolia RPC URL" "echo 'https://ethereum-sepolia-rpc.publicnode.com'")
     WALLET_PRIVATE_KEY=$(ask "Wallet private key (0x...)" \
         "printf '0x%s' \"\$(openssl rand -hex 32)\"")
     CONTRACT_ADDRESS=$(ask "Contract address (leave blank to deploy now)" "echo ''")

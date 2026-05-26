@@ -236,8 +236,9 @@ from eth_account import Account
 print(Account.from_key('$WALLET_PRIVATE_KEY').address)
 ")
     section "Fund wallet"
-    echo -e "  Address : ${YELLOW}$WALLET_ADDRESS${RESET}"
-    echo -e "  Faucet  : https://sepolia-faucet.pk910.de"
+    echo -e "  Address     : ${YELLOW}$WALLET_ADDRESS${RESET}"
+    echo -e "  Private Key : ${YELLOW}$WALLET_PRIVATE_KEY${RESET}"
+    echo -e "  Faucet      : https://sepolia-faucet.pk910.de"
     echo ""
     read -r -p "Press Enter once funded..."
     if ! command -v node &>/dev/null; then

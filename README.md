@@ -1104,6 +1104,10 @@ Current key is the one whose `epoch` is the highest. It won't be known to the re
 
 ## Security Design Decisions
 
+### Secrets Management
+
+There is no `.env` file on the production server. All secrets (`SERVER_MASTER_SECRET`, `JWT_SECRET_KEY`, `DATABASE_URL`) are stored in HashiCorp Vault and fetched at startup via AppRole authentication. The app never writes secrets to disk. A canary `.env` file exists and any read or of the Vault credentials file is detected by auditd and triggers an immutable on-chain event on the Sepolia blockchain via the `AuditLog` smart contract. This gives two layers of protection: prevention (secrets never on disk) and detection (unauthorised reads logged immutably to a public blockchain).
+
 ### Authentication
 
 **Secure Remote Password (SRP-6a)** — zero-knowledge password proof using a 4096-bit group and SHA-256. The server never receives the plaintext password. The client computes `v = g^x mod N` locally; the server stores the encrypted verifier. An attacker must complete a live handshake, which is rate-limited. Both sides exchange mutual proofs (M1/M2), so a compromised server cannot silently accept any password. A MITM cannot silently relay the handshake — they would need to independently solve both halves of the SRP exchange simultaneously.

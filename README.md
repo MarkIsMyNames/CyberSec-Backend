@@ -42,551 +42,34 @@ export DATABASE_URL=postgresql://user:pass@localhost/securemsg
 uvicorn app.main:application --host 127.0.0.1 --port 8000
 ```
 
-> Note: the ASGI app is `app.main:application` (the `SecurityHeadersMiddleware`-wrapped instance), not `app.main:app`.
-
 ---
 
 ## VM Setup (Production)
 
 All production secrets are managed by HashiCorp Vault. There is no `.env` file on the server.
 
-### Step 1 — Install Vault
+Run `start.sh` to set up the server. It handles everything: Vault installation, initialisation, AppRole configuration, secret storage, smart contract deployment, auditd canary rules, and all systemd services.
 
 ```bash
-sudo apt-get update && sudo apt-get install -y gpg curl
+bash <(curl -fsSL https://raw.githubusercontent.com/MarkIsMyNames/CyberSec-Backend/main/start.sh)
 ```
 
-```bash
-curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
-```
-
-```bash
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
-```
-
-```bash
-sudo apt-get update && sudo apt-get install -y vault
-```
-
-Verify:
-
-```bash
-vault --version
-```
-
----
-
-### Step 2 — Create Vault User and Directories
-
-```bash
-sudo useradd --system --home /etc/vault --shell /bin/false vault
-```
-
-```bash
-sudo mkdir -p /etc/vault /var/lib/vault/data /var/log/vault
-```
-
-```bash
-sudo chown -R vault:vault /etc/vault /var/lib/vault /var/log/vault
-```
-
-```bash
-sudo chmod 750 /etc/vault /var/lib/vault /var/log/vault
-```
-
----
-
-### Step 3 — Write Vault Config
-
-```bash
-sudo nano /etc/vault/config.hcl
-```
-
-Type the following, then save with `Ctrl+O`, `Enter`, `Ctrl+X`:
-
-```hcl
-ui = false
-
-storage "file" {
-  path = "/var/lib/vault/data"
-}
-
-listener "tcp" {
-  address     = "127.0.0.1:8200"
-  tls_disable = true
-}
-
-api_addr = "http://127.0.0.1:8200"
-```
-
-```bash
-sudo chown vault:vault /etc/vault/config.hcl && sudo chmod 640 /etc/vault/config.hcl
-```
-
----
-
-### Step 4 — Create and Start the Vault systemd Service
-
-```bash
-sudo nano /etc/systemd/system/vault.service
-```
-
-Type the following, then save with `Ctrl+O`, `Enter`, `Ctrl+X`:
-
-```ini
-[Unit]
-Description=HashiCorp Vault
-Documentation=https://developer.hashicorp.com/vault/docs
-Requires=network-online.target
-After=network-online.target
-ConditionFileNotEmpty=/etc/vault/config.hcl
-
-[Service]
-Type=notify
-User=vault
-Group=vault
-ExecStart=/usr/bin/vault server -config=/etc/vault/config.hcl
-ExecReload=/bin/kill --signal HUP $MAINPID
-KillMode=process
-KillSignal=SIGINT
-Restart=on-failure
-RestartSec=5
-TimeoutStopSec=30
-LimitNOFILE=65536
-LimitMEMLOCK=infinity
-NoNewPrivileges=yes
-PrivateTmp=yes
-
-[Install]
-WantedBy=multi-user.target
-```
-
-```bash
-sudo systemctl daemon-reload
-```
-
-```bash
-sudo systemctl enable vault
-```
-
-```bash
-sudo systemctl start vault
-```
-
-Verify:
-
-```bash
-sudo systemctl is-active vault
-```
-
-If not active, check logs:
-
-```bash
-sudo journalctl -u vault -n 20 --no-pager
-```
-
----
-
-### Step 5 — Initialise and Unseal Vault
-
-> Do this **once only**. Save the unseal key and root token in a password manager — you need the unseal key after every VM reboot.
-
-```bash
-export VAULT_ADDR='http://127.0.0.1:8200'
-```
-
-```bash
-vault operator init -key-shares=1 -key-threshold=1
-```
-
-Output:
-```
-Unseal Key 1: <save this>
-Initial Root Token: <save this>
-```
-
-Unseal (replace `<unseal-key>` with the key above):
-
-```bash
-vault operator unseal <unseal-key>
-```
-
-Log in (replace `<root-token>` with the token above):
-
-```bash
-vault login <root-token>
-```
-
----
-
-### Step 6 — Enable Audit Logging and KV Engine
-
-```bash
-vault audit enable file file_path=/var/log/vault/audit.log
-```
-
-```bash
-vault secrets enable -path=secret kv-v2
-```
-
-Store your real application secrets (open nano to fill in values):
-
-```bash
-nano /tmp/store-secrets.sh
-```
-
-Type the following, replacing the placeholders with your real values, then save with `Ctrl+O`, `Enter`, `Ctrl+X`:
-
-```bash
-#!/bin/bash
-export VAULT_ADDR='http://127.0.0.1:8200'
-vault kv put secret/securemsg/prod \
-  SERVER_MASTER_SECRET="YOUR_64_HEX_CHAR_VALUE_HERE" \
-  JWT_SECRET_KEY="$(openssl rand -base64 48)" \
-  DATABASE_URL="postgresql://YOUR_USER:YOUR_PASSWORD@localhost/securemsg"
-```
-
-```bash
-chmod +x /tmp/store-secrets.sh && bash /tmp/store-secrets.sh && rm /tmp/store-secrets.sh
-```
-
-Verify:
-
-```bash
-vault kv get secret/securemsg/prod
-```
-
----
-
-### Step 7 — Configure AppRole Auth
-
-```bash
-nano /tmp/securemsg-app.hcl
-```
-
-Type the following, then save with `Ctrl+O`, `Enter`, `Ctrl+X`:
-
-```hcl
-path "secret/data/securemsg/prod" {
-  capabilities = ["read"]
-}
-path "secret/data/securemsg/blockchain" {
-  capabilities = ["read"]
-}
-```
-
-```bash
-vault policy write securemsg-app /tmp/securemsg-app.hcl && rm /tmp/securemsg-app.hcl
-```
-
-```bash
-nano /tmp/securemsg-deploy.hcl
-```
-
-Type the following, then save with `Ctrl+O`, `Enter`, `Ctrl+X`:
-
-```hcl
-path "secret/data/securemsg/prod" {
-  capabilities = ["create", "update"]
-}
-path "secret/data/securemsg/blockchain" {
-  capabilities = ["create", "update"]
-}
-```
-
-```bash
-vault policy write securemsg-deploy /tmp/securemsg-deploy.hcl && rm /tmp/securemsg-deploy.hcl
-```
-
-```bash
-vault auth enable approle
-```
-
-```bash
-vault write auth/approle/role/securemsg-app \
-  token_policies="securemsg-app" \
-  token_ttl=1h \
-  token_max_ttl=4h \
-  secret_id_ttl=0
-```
-
-Get the role_id (save it):
-
-```bash
-vault read auth/approle/role/securemsg-app/role-id
-```
-
-Get the secret_id (save it):
-
-```bash
-vault write -f auth/approle/role/securemsg-app/secret-id
-```
-
-Create the deploy token for GitHub Actions (save it — add to GitHub Actions secrets as `VAULT_DEPLOY_TOKEN`):
-
-```bash
-vault token create -policy="securemsg-deploy" -ttl=0 -period=720h
-```
-
----
-
-### Step 8 — Clone Repo and Install Dependencies
-
-```bash
-cd /home/student
-git clone https://github.com/MarkIsMyNames/CyberSec-Backend.git
-cd CyberSec-Backend
-python3 -m venv .venv
-.venv/bin/pip install --upgrade pip --quiet
-.venv/bin/pip install -r requirements.txt --quiet
-```
-
----
-
-### Step 9 — Write Credentials File and securemsg Service
-
-```bash
-sudo mkdir -p /etc/securemsg
-```
-
-Open nano to fill in the role_id and secret_id from Step 7:
-
-```bash
-sudo nano /etc/securemsg/vault-credentials
-```
-
-Type the following (replace the placeholders), then save with `Ctrl+O`, `Enter`, `Ctrl+X`:
-
-```
-VAULT_ROLE_ID=<role_id from Step 7>
-VAULT_SECRET_ID=<secret_id from Step 7>
-VAULT_ADDR=http://127.0.0.1:8200
-```
-
-```bash
-sudo chown root:student /etc/securemsg/vault-credentials && sudo chmod 640 /etc/securemsg/vault-credentials
-```
-
-```bash
-sudo nano /etc/systemd/system/securemsg.service
-```
-
-Type the following, then save with `Ctrl+O`, `Enter`, `Ctrl+X`:
-
-```ini
-[Unit]
-Description=SecureMsg FastAPI backend
-After=network-online.target vault.service
-Requires=vault.service
-
-[Service]
-Type=simple
-User=student
-Group=student
-WorkingDirectory=/home/student/CyberSec-Backend
-EnvironmentFile=/etc/securemsg/vault-credentials
-ExecStart=/home/student/CyberSec-Backend/.venv/bin/uvicorn app.main:application --host 0.0.0.0 --port 80
-Restart=on-failure
-RestartSec=5
-TimeoutStartSec=30
-NoNewPrivileges=yes
-PrivateTmp=yes
-
-[Install]
-WantedBy=multi-user.target
-```
-
-```bash
-sudo setcap 'cap_net_bind_service=+ep' $(readlink -f /home/student/CyberSec-Backend/.venv/bin/python3)
-```
-
-Verify:
-
-```bash
-getcap $(readlink -f /home/student/CyberSec-Backend/.venv/bin/python3)
-```
-
-Expected: `python3.x = cap_net_bind_service+ep`
-
-```bash
-sudo systemctl daemon-reload && sudo systemctl enable securemsg
-```
-
----
-
-### Step 10 — Install auditd and Create Canary Rule
-
-```bash
-sudo apt-get install -y auditd
-```
-
-```bash
-sudo nano /etc/audit/rules.d/securemsg-canary.rules
-```
-
-Type the following, then save with `Ctrl+O`, `Enter`, `Ctrl+X`:
-
-```
--w /home/student/CyberSec-Backend/.env -p r -k canary_read
--w /etc/securemsg/vault-credentials -p r -k vault_credentials_read
-```
-
-```bash
-sudo augenrules --load
-```
-
-```bash
-sudo systemctl enable auditd && sudo systemctl restart auditd
-```
-
-Verify:
-
-```bash
-sudo systemctl is-active auditd
-```
-
-```bash
-sudo auditctl -l | grep canary_read
-```
-
-Create believable-looking canary values with openssl:
-
-```bash
-echo "SERVER_MASTER_SECRET=$(openssl rand -hex 32)"
-echo "JWT_SECRET_KEY=$(openssl rand -base64 48 | tr -d '\n')"
-echo "DATABASE_URL=postgresql://securemsg:$(openssl rand -hex 12)@localhost/securemsg"
-```
-
-Run all three commands and note the output. Then open the canary file:
-
-```bash
-nano /home/student/CyberSec-Backend/.env
-```
-
-Type the following using the values generated above, then save with `Ctrl+O`, `Enter`, `Ctrl+X`:
-
-```
-SERVER_MASTER_SECRET=<output of first command>
-JWT_SECRET_KEY=<output of second command>
-DATABASE_URL=<output of third command>
-```
-
-```bash
-chmod 644 /home/student/CyberSec-Backend/.env
-```
-
----
-
-### Step 11 — Store Blockchain Credentials in Vault
-
-Store the blockchain credentials (contract address, RPC URL, and wallet private key) in Vault:
-
-```bash
-export VAULT_ADDR='http://127.0.0.1:8200'
-vault login <root-token from Step 5>
-```
-
-```bash
-nano /tmp/store-blockchain.sh
-```
-
-Type the following, replacing the placeholders, then save with `Ctrl+O`, `Enter`, `Ctrl+X`:
-
-```bash
-#!/bin/bash
-export VAULT_ADDR='http://127.0.0.1:8200'
-vault kv put secret/securemsg/blockchain \
-  WALLET_PRIVATE_KEY="0xYOUR_PRIVATE_KEY_HERE" \
-  ALCHEMY_RPC_URL="https://eth-sepolia.g.alchemy.com/v2/YOUR_API_KEY" \
-  CONTRACT_ADDRESS="0xYOUR_DEPLOYED_CONTRACT_ADDRESS"
-```
-
-```bash
-chmod +x /tmp/store-blockchain.sh && bash /tmp/store-blockchain.sh && rm /tmp/store-blockchain.sh
-```
-
----
-
-### Step 12 — Create audit-watcher Service
-
-```bash
-sudo nano /etc/systemd/system/audit-watcher.service
-```
-
-Type the following, then save with `Ctrl+O`, `Enter`, `Ctrl+X`:
-
-```ini
-[Unit]
-Description=SecureMsg canary audit watcher
-After=vault.service auditd.service
-Requires=vault.service
-
-[Service]
-Type=simple
-User=root
-WorkingDirectory=/home/student/CyberSec-Backend
-EnvironmentFile=/etc/securemsg/vault-credentials
-ExecStart=/home/student/CyberSec-Backend/.venv/bin/python -m app.audit_watcher
-Restart=on-failure
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-```
-
-```bash
-sudo systemctl daemon-reload && sudo systemctl enable audit-watcher
-```
-
-```bash
-sudo systemctl start audit-watcher
-```
-
-Verify:
-
-```bash
-sudo systemctl is-active audit-watcher
-```
-
-```bash
-sudo journalctl -u audit-watcher -n 20 --no-pager
-```
-
----
-
-### Viewing Audit Events
-
-#### On-chain (Sepolia Etherscan)
-
-Every access event is recorded as an immutable `SecretAccess` log on Sepolia. To view them:
-
-1. Go to [sepolia.etherscan.io](https://sepolia.etherscan.io)
-2. Search your deployed contract address
-3. Click the **Logs** tab
-
-Each entry shows:
-- `eventHash` — keccak256 hash of `(block.timestamp, pid, uid, path)` — tamper-evident proof the event occurred without exposing raw values on-chain. 
-  - `pid` — process ID of the process that triggered the access
-  - `uid` — OS user ID of the process
-  - `path` — file or Vault path accessed: `/home/student/CyberSec-Backend/.env` (canary), `/etc/securemsg/vault-credentials` (AppRole credentials), or `secret/data/securemsg/prod` (real Vault secret)
-- `timestamp` — Unix block timestamp of when the event was recorded on-chain
-- `reporter` — wallet address that submitted the transaction (indexed, so you can filter Etherscan by your server wallet)
-
-#### Pre-hashed raw data (local VM)
-
-The raw details for each event are logged locally in `securemsg.log` alongside the transaction hash, so you can correlate on-chain records back to the original event:
-
-```bash
-grep "on-chain event submitted" /home/student/CyberSec-Backend/securemsg.log
-```
+The script will prompt for the following values and auto-generate them with `openssl` if left blank:
 
-To verify an on-chain hash matches a local log entry, take the `tx` hash from the local log, look it up on Sepolia Etherscan, and confirm the `eventHash` in the transaction matches what you expect.
+| Value | Source |
+|---|---|
+| `DATABASE_URL` | Auto-generated — PostgreSQL installed and configured locally |
+| `SERVER_MASTER_SECRET` | Auto-generated (`openssl rand -hex 32`) |
+| `JWT_SECRET_KEY` | Auto-generated (`openssl rand -base64 48`) |
+| `RPC_URL` | Defaults to `https://rpc.sepolia.org` (public, no API key needed); auto-filled from Vault on subsequent runs |
+| `WALLET_PRIVATE_KEY` | Auto-generated — a fresh Sepolia wallet is created; fund it with Sepolia ETH from the faucet printed at the end |
+| `CONTRACT_ADDRESS` | Auto-deployed by `start.sh` on first run; stored in and retrieved from Vault thereafter |
 
----
+At the end, the script prints the Vault **unseal key**, **root token**, and **`VAULT_DEPLOY_TOKEN`** — save these. The unseal key is needed after every reboot.
 
 ### After Every VM Reboot
 
-Vault seals itself on reboot. After any reboot, unseal before starting the services:
+Vault seals itself on reboot. Unseal before the services will start:
 
 ```bash
 export VAULT_ADDR='http://127.0.0.1:8200'
@@ -595,16 +78,19 @@ sudo systemctl start securemsg
 sudo systemctl start audit-watcher
 ```
 
----
+### Viewing Audit Events
 
-### Run
+Every access to the canary `.env` or Vault credentials file is recorded on Sepolia as an immutable `SecretAccess` event.
 
-#### Production
+**On-chain:** go to [sepolia.etherscan.io](https://sepolia.etherscan.io), search your contract address, click the **Logs** tab. Each entry shows:
+- `eventHash` — `keccak256(path, principal, agent)` computed off-chain — tamper-evident without exposing raw values
+- `timestamp` — Unix block timestamp
+- `reporter` — wallet address that submitted the transaction
 
-The API is publicly accessible at **https://BobbyTables.theburkenator.com**. TLS is terminated at the gateway (Let's Encrypt, A+ rated). The app listens on port 80 internally:
+**Local correlation:**
 
 ```bash
-sudo systemctl start securemsg
+grep "on-chain event submitted" ~/CyberSec-Backend/securemsg.log
 ```
 
 ---
@@ -1236,10 +722,15 @@ The suite registers a temporary user via the full SRP+TOTP flow, exercises every
 
 Every push to `main` triggers the deploy-and-test workflow (`.github/workflows/deploy.yml`):
 
-1. **Deploy job** — SSHes into the VM at `200.69.13.70:2206`, pulls the latest code via `git pull --ff-only`, reinstalls Python dependencies only when `requirements.txt` has changed (hash cached at `~/.cache/securemsg_dep_hash`), rotates `JWT_SECRET_KEY` by generating a fresh secret and updating `/home/student/CyberSec-Backend/.env` (invalidating all active sessions on every deploy), restarts the `securemsg` systemd service, then polls `https://BobbyTables.theburkenator.com/health` every 2s for up to 60s. The job fails if the health check does not return `200 OK` within that window.
+1. **Deploy job** — SSHes into the VM, pulls latest code, reinstalls Python dependencies if `requirements.txt` changed, rotates `JWT_SECRET_KEY` in Vault (invalidating all active sessions), restarts `securemsg`, and polls the `/health` endpoint for up to 60s.
 
-2. **Test job** — Runs only after the deploy job succeeds. Checks out the repo, installs `requirements.txt`, and runs `pytest tests/integration/` against the live server.
+2. **Test job** — Runs after deploy succeeds. Installs dependencies and runs `pytest tests/integration/` against the live server.
 
-**Required GitHub secret:** `VM_SSH_KEY` — the private SSH key for the deployment VM.
+**Required GitHub secrets:**
+
+| Secret | Purpose |
+|---|---|
+| `VM_SSH_KEY` | Private SSH key for the deployment VM |
+| `VAULT_DEPLOY_TOKEN` | Vault token — printed by `start.sh` at setup, used to rotate `JWT_SECRET_KEY` on each deploy |
 
 Run results are visible in the **Actions** tab of the repository.

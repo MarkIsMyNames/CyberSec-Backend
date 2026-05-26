@@ -347,8 +347,9 @@ def test_record_group_receipt_noop_for_nonrecipient(session):
     group = groups.create_group("g", creator_id=alice)
     groups.add_member(group.id, alice, bob, b"skdm")
     msg = groups.store_group_message(group.id, alice, 0, b"\1")
-    # dave is not a recipient — calling record_group_receipt should not crash
-    groups.record_group_receipt(msg.id, dave)
+    # dave is not a recipient — no receipt row exists, so LookupError is raised
+    with pytest.raises(LookupError):
+        groups.record_group_receipt(msg.id, dave)
     # message must still be present because bob has not acknowledged
     assert len(groups.get_group_messages(group.id, bob)) == 1
 

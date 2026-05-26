@@ -251,7 +251,9 @@ async def record_group_message_receipt(
     try:
         group_repo.record_group_receipt(msg_id, current_user.id)
     except LookupError:
-        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="Message not found")
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND, detail="Message not found"
+        )
     logger.info(
         "group receipt recorded message_id=%d group_id=%d user_id=%d",
         msg_id,

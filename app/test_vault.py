@@ -5,6 +5,14 @@ import pytest
 
 from app.vault import load_secrets
 
+_SECRETS = ("SERVER_MASTER_SECRET", "JWT_SECRET_KEY", "DATABASE_URL")
+
+
+@pytest.fixture(autouse=True)
+def clear_app_secrets(monkeypatch):
+    for key in _SECRETS:
+        monkeypatch.delenv(key, raising=False)
+
 
 def test_happy_path(monkeypatch):
     monkeypatch.setenv("VAULT_ADDR", "http://vault:8200")

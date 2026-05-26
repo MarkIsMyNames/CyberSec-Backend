@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import http
 import httpx
-import pytest
 import srp
 
 from tests.integration.conftest import (
@@ -285,8 +284,7 @@ class TestAuth:
             headers=auth_headers(user["access_token"]),
             params={"username": user["username"]},
         )
-        if lookup.status_code != http.HTTPStatus.OK:
-            pytest.skip("Could not look up user_id")
+        assert lookup.status_code == http.HTTPStatus.OK
         user_id = lookup.json()["user_id"]
         req(
             client,
@@ -335,9 +333,7 @@ class TestAuth:
             headers=auth_headers(auth["access_token"]),
             params={"username": user_a["username"]},
         )
-        if lookup.status_code != http.HTTPStatus.OK:
-            req(client, "DELETE", "/api/v1/auth/me", headers=auth_headers(user_a["access_token"]))
-            pytest.skip("Could not look up user_a id")
+        assert lookup.status_code == http.HTTPStatus.OK
         user_a_id = lookup.json()["user_id"]
         send_resp = req(
             client,

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import http
 import httpx
-import pytest
 
 from tests.integration.conftest import auth_headers, req, B64_32
 
@@ -16,8 +15,7 @@ class TestMessages:
             headers=auth_headers(auth["access_token"]),
             params={"username": second_user["username"]},
         )
-        if resp.status_code != http.HTTPStatus.OK:
-            pytest.skip("second_user has no user_id available (no bundle)")
+        assert resp.status_code == http.HTTPStatus.OK
         recipient_id = resp.json()["user_id"]
         resp = req(
             client,

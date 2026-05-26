@@ -150,7 +150,9 @@ def run() -> None:
             logger.info("tailing %s", src_file.name)
         logger.info("audit watcher running")
         while True:
-            for inotify_event in inotify.read(): # Will block until an update to the file
+            for (
+                inotify_event
+            ) in inotify.read():  # Will block until an update to the file
                 watched_file, watched_parser = wd_to_handle[inotify_event.wd]
                 while True:
                     line = watched_file.readline()

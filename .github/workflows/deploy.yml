@@ -43,7 +43,9 @@ jobs:
             fi
             echo "--- rotate jwt secret"
             NEW_JWT="$(openssl rand -base64 48)"
-            sed -i "s|^JWT_SECRET_KEY=.*|JWT_SECRET_KEY=$NEW_JWT|" /home/student/CyberSec-Backend/.env
+            VAULT_ADDR=http://127.0.0.1:8200 vault kv patch \
+              -header "X-Vault-Token=${{ secrets.VAULT_DEPLOY_TOKEN }}" \
+              secret/securemsg/prod JWT_SECRET_KEY="$NEW_JWT"
 
             echo "--- systemctl"
             sudo systemctl stop securemsg 2>/dev/null || true

@@ -1,0 +1,26 @@
+[
+  {
+    "type": "function",
+    "name": "logAccess",
+    "inputs": [
+      {"name": "eventHash", "type": "bytes32", "internalType": "bytes32"}
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "event",
+    "name": "SecretAccess",
+    "inputs": [
+      {"name": "eventHash", "type": "bytes32", "indexed": true, "internalType": "bytes32"},
+      {"name": "timestamp", "type": "uint256", "indexed": true, "internalType": "uint256"},
+      {"name": "reporter", "type": "address", "indexed": false, "internalType": "address"}
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "error",
+    "name": "Unauthorised",
+    "inputs": []
+  }
+]

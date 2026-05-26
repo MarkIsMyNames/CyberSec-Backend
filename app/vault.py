@@ -1,0 +1,30 @@
+import os
+
+import hvac
+
+from app.logger import logger
+
+
+def load_secrets() -> None:
+    try:
+        addr = os.environ["VAULT_ADDR"]
+        role_id = os.environ["VAULT_ROLE_ID"]
+        secret_id = os.environ["VAULT_SECRET_ID"]
+    except KeyError as exc:
+        raise RuntimeError("Vault bootstrap failed: missing env var %s" % exc) from exc
+    try:
+        client = hvac.Client(url=addr)
+        client.auth.approle.login(role_id=role_id, secret_id=secret_id)
+        result = client.secrets.kv.v2.read_secret_version(
+            path="securemsg/prod", mount_point="secret",
+        )
+        data = result["data"]["data"]
+    except Exception as exc:
+        raise RuntimeError("Vault secret fetch failed: %s" % exc) from exc
+    try:
+        os.environ["SERVER_MASTER_SECRET"] = data["SERVER_MASTER_SECRET"]
+        os.environ["JWT_SECRET_KEY"] = data["JWT_SECRET_KEY"]
+        os.environ["DATABASE_URL"] = data["DATABASE_URL"]
+    except KeyError as exc:
+        raise RuntimeError("Vault secret missing expected key: %s" % exc) from exc
+    logger.info("secrets loaded from Vault")

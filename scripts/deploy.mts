@@ -57,7 +57,7 @@ async function readVaultSecret(path: string): Promise<BlockchainSecrets> {
 
 function compile(): { abi: object[]; bytecode: string } {
   const source = readFileSync(resolve(__dirname, "../AuditLog.sol"), "utf8");
-  const output = JSON.parse(solc(JSON.stringify({
+  const output = JSON.parse((solc as unknown as { compile: (i: string) => string }).compile(JSON.stringify({
     language: "Solidity",
     sources: { "AuditLog.sol": { content: source } },
     settings: { outputSelection: { "*": { "*": ["abi", "evm.bytecode"] } } },

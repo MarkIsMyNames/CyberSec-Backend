@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import http
 import httpx
-import pytest
 
 from tests.integration.conftest import (
     auth_headers,
@@ -111,8 +110,7 @@ class TestGroups:
             headers=auth_headers(auth["access_token"]),
             params={"username": second_user["username"]},
         )
-        if lookup.status_code != http.HTTPStatus.OK:
-            pytest.skip("second_user has no bundle")
+        assert lookup.status_code == http.HTTPStatus.OK
         second_id = lookup.json()["user_id"]
         resp = req(
             client,
@@ -169,8 +167,7 @@ class TestGroups:
             headers=auth_headers(auth["access_token"]),
             params={"username": second_user["username"]},
         )
-        if lookup.status_code != http.HTTPStatus.OK:
-            pytest.skip("second_user has no bundle")
+        assert lookup.status_code == http.HTTPStatus.OK
         second_id = lookup.json()["user_id"]
         req(
             client,
@@ -339,8 +336,7 @@ class TestGroups:
             headers=auth_headers(auth["access_token"]),
             params={"username": second_user["username"]},
         )
-        if lookup.status_code != http.HTTPStatus.OK:
-            pytest.skip("second_user has no bundle")
+        assert lookup.status_code == http.HTTPStatus.OK
         second_id = lookup.json()["user_id"]
         req(
             client,
@@ -390,8 +386,7 @@ class TestGroups:
             headers=auth_headers(auth["access_token"]),
             params={"username": second_user["username"]},
         )
-        if lookup.status_code != http.HTTPStatus.OK:
-            pytest.skip("second_user has no bundle")
+        assert lookup.status_code == http.HTTPStatus.OK
         second_id = lookup.json()["user_id"]
         req(
             client,
@@ -448,8 +443,7 @@ class TestGroups:
             headers=auth_headers(auth["access_token"]),
             params={"username": second_user["username"]},
         )
-        if lookup.status_code != http.HTTPStatus.OK:
-            pytest.skip("second_user has no bundle")
+        assert lookup.status_code == http.HTTPStatus.OK
         second_id = lookup.json()["user_id"]
         req(
             client,
@@ -545,8 +539,7 @@ class TestGroups:
             headers=auth_headers(creator["access_token"]),
             params={"username": second_user["username"]},
         )
-        if lookup.status_code != http.HTTPStatus.OK:
-            pytest.skip("second_user has no bundle")
+        assert lookup.status_code == http.HTTPStatus.OK
         second_id = lookup.json()["user_id"]
         req(
             client,
@@ -611,8 +604,7 @@ class TestGroups:
             headers=auth_headers(auth["access_token"]),
             params={"username": second_user["username"]},
         )
-        if lookup.status_code != http.HTTPStatus.OK:
-            pytest.skip("second_user has no bundle")
+        assert lookup.status_code == http.HTTPStatus.OK
         second_id = lookup.json()["user_id"]
         req(
             client,

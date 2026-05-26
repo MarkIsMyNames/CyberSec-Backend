@@ -323,12 +323,16 @@ class SQLGroupRepository:
         return True
 
     def record_group_receipt(self, message_id: int, user_id: int) -> None:
-        self._session.execute(
-            delete(GroupMessageReceipt).where(
+        result = self._session.execute(
+            delete(GroupMessageReceipt)
+            .where(
                 GroupMessageReceipt.message_id == message_id,
                 GroupMessageReceipt.user_id == user_id,
             )
+            .returning(GroupMessageReceipt.message_id)
         )
+        if result.first() is None:
+            raise LookupError("group message %d not found" % message_id)
         self._session.execute(
             delete(GroupMessage).where(
                 GroupMessage.id == message_id,

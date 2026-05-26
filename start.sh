@@ -21,6 +21,8 @@ warn()    { echo -e "${YELLOW}[!]${RESET} $*"; }
 section() { echo -e "\n${BOLD}━━━  $*  ━━━${RESET}"; }
 die()     { echo -e "${RED}[✗]${RESET} $*" >&2; exit 1; }
 
+trap 'echo -e "${RED}[✗]${RESET} Script failed at line $LINENO" >&2' ERR
+
 # Prompts for a value; runs the generate command if left blank.
 ask() {
     local prompt="$1" generate="$2"
@@ -35,18 +37,24 @@ command -v jq &>/dev/null || sudo apt-get install -y -qq jq
 
 # ─── PostgreSQL ───────────────────────────────
 section "Setting up PostgreSQL"
-command -v psql &>/dev/null || sudo apt-get install -y -qq postgresql
+command -v psql &>/dev/null || { info "Installing postgresql..."; sudo apt-get install -y -qq postgresql; }
+info "Enabling postgresql service..."
 sudo systemctl enable postgresql --quiet
 sudo systemctl start postgresql
+info "Checking database role..."
 if sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='$APP'" | grep -q 1; then
+    info "Role $APP exists — reading password from Vault..."
     DB_PASS=$(vault kv get -field=DATABASE_URL secret/$APP/prod 2>/dev/null \
         | grep -oP '(?<=://'"$APP"':)[^@]+')
     [ -n "$DB_PASS" ] || die "Role $APP exists but could not read password from Vault."
 else
+    info "Creating role $APP..."
     DB_PASS=$(openssl rand -hex 16)
     sudo -u postgres psql -c "CREATE USER $APP WITH PASSWORD '$DB_PASS';"
 fi
+info "Checking database..."
 if ! sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='$APP'" | grep -q 1; then
+    info "Creating database $APP..."
     sudo -u postgres psql -c "CREATE DATABASE $APP OWNER $APP;"
 fi
 DATABASE_URL="postgresql://$APP:$DB_PASS@localhost/$APP"

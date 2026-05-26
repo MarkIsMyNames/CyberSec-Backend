@@ -559,7 +559,7 @@ Current key is the one whose `epoch` is the highest. It won't be known to the re
 
 **TOTP 2FA** — required after every SRP handshake. TOTP secrets are encrypted at rest with AES-256-GCM; the key is derived from `SERVER_MASTER_SECRET` via HKDF-SHA256.
 
-**JWT tokens** — short-lived access tokens (15 min) plus single-use refresh tokens. Refresh tokens are revoked immediately on use and blocklisted on logout.
+**JWT tokens** — short-lived access tokens (15 min) plus single-use refresh tokens. Refresh tokens are revoked immediately on use and blocklisted on logout. The signing secret (`JWT_SECRET_KEY`) is rotated on every deploy, invalidating all active sessions.
 
 ### End-to-End Encryption
 

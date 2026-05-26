@@ -36,7 +36,7 @@ pip install -r requirements.txt
 | Variable | Description |
 |---|---|
 | `SERVER_MASTER_SECRET` | 64-hex-char string (32 bytes); master key for HKDF derivations |
-| `JWT_SECRET_KEY` | Random string for JWT signing (≥32 chars recommended) |
+| `JWT_SECRET_KEY` | Random string for JWT signing (≥32 chars recommended); automatically rotated on every deploy — all active sessions are invalidated on each push |
 | `DATABASE_URL` | PostgreSQL connection string, e.g. `postgresql://user:pass@localhost/securemsg` |
 
 Copy `.env.example` to `.env` and fill in values. Load with `export $(cat .env | xargs)` before running or running tests.
@@ -682,7 +682,7 @@ The suite registers a temporary user via the full SRP+TOTP flow, exercises every
 
 Every push to `main` triggers the deploy-and-test workflow (`.github/workflows/deploy.yml`):
 
-1. **Deploy job** — SSHes into the VM at `200.69.13.70:2206`, pulls the latest code via `git pull --ff-only`, reinstalls Python dependencies only when `requirements.txt` has changed (hash cached at `~/.cache/securemsg_dep_hash`), restarts the `securemsg` systemd service (starts it if not already running), then polls `https://BobbyTables.theburkenator.com/health` every 2s for up to 60s. The job fails if the health check does not return `200 OK` within that window.
+1. **Deploy job** — SSHes into the VM at `200.69.13.70:2206`, pulls the latest code via `git pull --ff-only`, reinstalls Python dependencies only when `requirements.txt` has changed (hash cached at `~/.cache/securemsg_dep_hash`), rotates `JWT_SECRET_KEY` by generating a fresh secret and updating `/home/student/CyberSec-Backend/.env` (invalidating all active sessions on every deploy), restarts the `securemsg` systemd service, then polls `https://BobbyTables.theburkenator.com/health` every 2s for up to 60s. The job fails if the health check does not return `200 OK` within that window.
 
 2. **Test job** — Runs only after the deploy job succeeds. Checks out the repo, installs `requirements.txt`, and runs `pytest tests/integration/` against the live server.
 

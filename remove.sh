@@ -40,6 +40,6 @@ sudo -u postgres psql -c "DROP DATABASE IF EXISTS $APP;" 2>/dev/null || true
 sudo -u postgres psql -c "DROP USER IF EXISTS $APP;" 2>/dev/null || true
 
 info "Removing repository..."
-rm -rf "$REPO_DIR"
+sudo rm -rf "$REPO_DIR"
 
 echo -e "\n${GREEN}${BOLD}Reset complete. Run start.sh to set up again.${RESET}"

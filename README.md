@@ -566,10 +566,9 @@ Every access event is recorded as an immutable `SecretAccess` log on Sepolia. To
 
 Each entry shows:
 - `eventHash` — keccak256 hash of `(block.timestamp, pid, uid, path)` — tamper-evident proof the event occurred without exposing raw values on-chain. 
-  - `block.timestamp` — Unix timestamp at the moment of recording (same as the emitted `timestamp` field)
   - `pid` — process ID of the process that triggered the access
   - `uid` — OS user ID of the process
-  - `path` — file or Vault path accessed: `/home/student/CyberSec-Backend/.env` (canary), `/etc/securemsg/vault-credentials` (AppRole credentials), or `secret/data/securemsg/prod` (real Vault secret). The path alone identifies what was accessed.
+  - `path` — file or Vault path accessed: `/home/student/CyberSec-Backend/.env` (canary), `/etc/securemsg/vault-credentials` (AppRole credentials), or `secret/data/securemsg/prod` (real Vault secret)
 - `timestamp` — Unix block timestamp of when the event was recorded on-chain
 - `reporter` — wallet address that submitted the transaction (indexed, so you can filter Etherscan by your server wallet)
 

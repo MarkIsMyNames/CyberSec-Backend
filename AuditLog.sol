@@ -16,11 +16,8 @@ contract AuditLog {
         owner = msg.sender;
     }
 
-    function logAccess(uint256 pid, uint256 uid, string calldata path) external {
+    function logAccess(bytes32 eventHash) external {
         if (msg.sender != owner) revert Unauthorised();
-        bytes32 eventHash = keccak256(abi.encodePacked(
-            block.timestamp, pid, uid, path
-        ));
         emit SecretAccess(eventHash, block.timestamp, msg.sender);
     }
 }

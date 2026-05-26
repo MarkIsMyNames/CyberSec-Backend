@@ -42,11 +42,10 @@ info "Enabling postgresql service..."
 sudo systemctl enable postgresql --quiet
 sudo systemctl start postgresql
 info "Checking database role..."
+ROLE_EXISTS=false
 if sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='$APP'" | grep -q 1; then
-    info "Role $APP exists — reading password from Vault..."
-    DB_PASS=$(vault kv get -field=DATABASE_URL secret/$APP/prod 2>/dev/null \
-        | grep -oP '(?<=://'"$APP"':)[^@]+')
-    [ -n "$DB_PASS" ] || die "Role $APP exists but could not read password from Vault."
+    ROLE_EXISTS=true
+    info "Role $APP already exists."
 else
     info "Creating role $APP..."
     DB_PASS=$(openssl rand -hex 16)
@@ -57,7 +56,6 @@ if ! sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='$APP'" 
     info "Creating database $APP..."
     sudo -u postgres psql -c "CREATE DATABASE $APP OWNER $APP;"
 fi
-DATABASE_URL="postgresql://$APP:$DB_PASS@localhost/$APP"
 info "PostgreSQL ready."
 
 # ─── Vault ────────────────────────────────────
@@ -138,6 +136,14 @@ fi
 
 vault audit list 2>/dev/null | grep -q "file/" || vault audit enable file file_path=/var/log/vault/audit.log
 vault secrets list 2>/dev/null | grep -q "secret/" || vault secrets enable -path=secret kv-v2
+
+if [ "$ROLE_EXISTS" = true ]; then
+    info "Reading database password from Vault..."
+    DB_PASS=$(vault kv get -field=DATABASE_URL secret/$APP/prod 2>/dev/null \
+        | grep -oP '(?<=://'"$APP"':)[^@]+')
+    [ -n "$DB_PASS" ] || die "Role $APP exists but could not read password from Vault."
+fi
+DATABASE_URL="postgresql://$APP:$DB_PASS@localhost/$APP"
 
 # ─── Secrets ──────────────────────────────────
 section "Storing secrets"

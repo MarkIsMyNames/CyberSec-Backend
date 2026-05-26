@@ -161,12 +161,13 @@ class TestAuth:
         resp = req(client, "POST", "/api/v1/auth/refresh", json={})
         assert resp.status_code == http.HTTPStatus.UNPROCESSABLE_ENTITY
 
-    def test_logout_happy_path(self, client: httpx.Client, auth: dict):
+    def test_logout_happy_path(self, client: httpx.Client):
+        user = full_auth(client)
         resp = req(
             client,
             "POST",
             "/api/v1/auth/logout",
-            json={"refresh_token": auth["refresh_token"]},
+            json={"refresh_token": user["refresh_token"]},
         )
         assert resp.status_code == http.HTTPStatus.NO_CONTENT
 

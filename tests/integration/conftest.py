@@ -165,6 +165,13 @@ def ephemeral_user(client: httpx.Client) -> Generator[dict, None, None]:
 @pytest.fixture
 def second_user(client: httpx.Client) -> Generator[dict, None, None]:
     user = full_auth(client)
+    req(
+        client,
+        "POST",
+        "/api/v1/keys/bundle",
+        headers=auth_headers(user["access_token"]),
+        json=BUNDLE_PAYLOAD,
+    )
     yield user
     delete_user(client, user["access_token"])
 

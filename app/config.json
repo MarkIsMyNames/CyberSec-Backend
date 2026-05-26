@@ -52,6 +52,24 @@
     "allowed_content_sources": "default-src 'none'",
     "referrer_exposure": "no-referrer"
   },
+  "vault": {
+    "mount_point": "secret",
+    "app_secret_path": "securemsg/prod",
+    "blockchain_secret_path": "securemsg/blockchain"
+  },
+  "audit": {
+    "vault_watch_path": "secret/data/securemsg/prod",
+    "auditd_log": "/var/log/audit/audit.log",
+    "vault_audit_log": "/var/log/vault/audit.log",
+    "tail_sleep_seconds": 0.5,
+    "auditd_key_pattern": "key=\"([^\"]+)\"",
+    "auditd_pid_pattern": "\\bpid=(\\d+)",
+    "auditd_uid_pattern": "\\buid=(\\d+)",
+    "auditd_key_map": {
+      "canary_read": "/home/student/CyberSec-Backend/.env",
+      "vault_credentials_read": "/etc/securemsg/vault-credentials"
+    }
+  },
   "logging": {
     "log_file": "securemsg.log",
     "log_level": "DEBUG",

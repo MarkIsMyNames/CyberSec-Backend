@@ -332,7 +332,7 @@ info "Canary .env written."
 section "Starting services"
 sudo systemctl start $APP audit-watcher
 for i in $(seq 1 30); do
-    curl -sf https://BobbyTables.theburkenator.com/health > /dev/null 2>&1 && {
+    curl -sf http://localhost/health > /dev/null 2>&1 && {
         info "Health check passed after $((i * 2))s."; break
     }
     [ "$i" -eq 30 ] && { sudo journalctl -u $APP -n 50 >&2; die "Health check timed out."; }

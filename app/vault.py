@@ -29,6 +29,10 @@ def read_vault_kv(path: str) -> dict[str, str]:
 
 
 def load_secrets() -> None:
+    required = ("SERVER_MASTER_SECRET", "JWT_SECRET_KEY", "DATABASE_URL")
+    if all(os.environ.get(k) for k in required):
+        logger.info("secrets already in environment — skipping Vault")
+        return
     data = read_vault_kv(vault_cfg["app_secret_path"])
     try:
         os.environ["SERVER_MASTER_SECRET"] = data["SERVER_MASTER_SECRET"]

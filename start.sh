@@ -116,7 +116,7 @@ UNIT
 
 sudo systemctl daemon-reload
 sudo systemctl enable vault --quiet
-sudo systemctl start vault
+sudo systemctl start vault || true
 sleep 2
 sudo systemctl is-active --quiet vault || { sudo journalctl -u vault -n 20 >&2; die "Vault failed to start."; }
 info "Vault service running."

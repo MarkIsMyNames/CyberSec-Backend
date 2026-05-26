@@ -124,14 +124,19 @@ def _totp_verify(client: httpx.Client, pre_auth_token: str, totp_secret: str) ->
 
 def full_auth(client: httpx.Client, password: str = "IntegrationTest1") -> dict:
     creds: dict = register(client, make_username(), password)
-    pre_auth = srp_login(client, creds["username"], password)
-    tokens = _totp_verify(client, pre_auth, creds["totp_secret"])
-    return {
-        "username": creds["username"],
-        "access_token": tokens["access_token"],
-        "refresh_token": tokens["refresh_token"],
-        "totp_secret": creds["totp_secret"],
-    }
+    for _ in range(REGISTER_MAX_ATTEMPTS):
+        pre_auth = srp_login(client, creds["username"], password)
+        tokens = _totp_verify(client, pre_auth, creds["totp_secret"])
+        if "access_token" in tokens:
+            return {
+                "username": creds["username"],
+                "access_token": tokens["access_token"],
+                "refresh_token": tokens["refresh_token"],
+                "totp_secret": creds["totp_secret"],
+            }
+        time.sleep(int(tokens.get("retry_after", 2)))
+    pytest.fail("full_auth: failed to obtain tokens after %d attempts" % REGISTER_MAX_ATTEMPTS)
+    raise AssertionError("unreachable")
 
 
 def auth_headers(access_token: str) -> dict[str, str]:

@@ -9,6 +9,7 @@ from tests.integration.conftest import (
     full_auth,
     req,
     B64_32,
+    BUNDLE_PAYLOAD,
 )
 
 
@@ -457,7 +458,7 @@ class TestGroups:
             "POST",
             "/api/v1/groups/%d/skdm" % grp["id"],
             headers=auth_headers(auth["access_token"]),
-            json={str(second_id): B64_32},
+            json={"skdm_ciphertexts": {str(second_id): B64_32}},
         )
         assert send_resp.status_code == http.HTTPStatus.NO_CONTENT
         get_resp = req(
@@ -498,7 +499,7 @@ class TestGroups:
             "POST",
             "/api/v1/groups/%d/skdm" % grp["id"],
             headers=auth_headers(outsider["access_token"]),
-            json={"1": B64_32},
+            json={"skdm_ciphertexts": {"1": B64_32}},
         )
         assert resp.status_code == http.HTTPStatus.FORBIDDEN
         delete_user(client, outsider["access_token"])
@@ -620,6 +621,13 @@ class TestGroups:
             headers=auth_headers(auth["access_token"]),
         ).json()["epoch"]
         user_c = full_auth(client)
+        req(
+            client,
+            "POST",
+            "/api/v1/keys/bundle",
+            headers=auth_headers(user_c["access_token"]),
+            json=BUNDLE_PAYLOAD,
+        )
         user_c_lookup = req(
             client,
             "GET",
@@ -627,15 +635,15 @@ class TestGroups:
             headers=auth_headers(auth["access_token"]),
             params={"username": user_c["username"]},
         )
-        if user_c_lookup.status_code == http.HTTPStatus.OK:
-            user_c_id = user_c_lookup.json()["user_id"]
-            req(
-                client,
-                "POST",
-                "/api/v1/groups/%d/members" % grp["id"],
-                headers=auth_headers(auth["access_token"]),
-                json={"user_id": user_c_id, "skdm_ciphertext": B64_32},
-            )
+        assert user_c_lookup.status_code == http.HTTPStatus.OK
+        user_c_id = user_c_lookup.json()["user_id"]
+        req(
+            client,
+            "POST",
+            "/api/v1/groups/%d/members" % grp["id"],
+            headers=auth_headers(auth["access_token"]),
+            json={"user_id": user_c_id, "skdm_ciphertext": B64_32},
+        )
         req(
             client,
             "DELETE",

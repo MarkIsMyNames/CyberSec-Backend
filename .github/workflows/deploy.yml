@@ -48,14 +48,14 @@ jobs:
               sudo systemctl start securemsg
             fi
 
-            sudo systemctl is-active --quiet securemsg || { echo "securemsg failed to start"; exit 1; }
+            sudo systemctl is-active --quiet securemsg || { echo "securemsg failed to start"; sudo journalctl -u securemsg -n 50 --no-pager; exit 1; }
 
             for i in $(seq 1 30); do
               if curl -sf https://BobbyTables.theburkenator.com/health > /dev/null 2>&1; then
                 echo "Health check passed after $((i * 2))s"
                 break
               fi
-              [ "$i" -eq 30 ] && { echo "Health check timed out after 60s"; exit 1; }
+              [ "$i" -eq 30 ] && { echo "Health check timed out after 60s"; sudo journalctl -u securemsg -n 50 --no-pager; exit 1; }
               sleep 2
             done
 

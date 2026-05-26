@@ -43,12 +43,12 @@ jobs:
             fi
             echo "--- systemctl"
             if sudo systemctl is-active --quiet securemsg; then
-              sudo systemctl restart securemsg
+              sudo systemctl restart securemsg || true
             else
-              sudo systemctl start securemsg
+              sudo systemctl start securemsg || true
             fi
-
-            sudo systemctl is-active --quiet securemsg || { echo "securemsg failed to start"; sudo journalctl -u securemsg -n 50 --no-pager; exit 1; }
+            sleep 3
+            sudo systemctl is-active --quiet securemsg || { echo "securemsg failed to start"; sudo journalctl -u securemsg -n 100 --no-pager; exit 1; }
 
             for i in $(seq 1 30); do
               if curl -sf https://BobbyTables.theburkenator.com/health > /dev/null 2>&1; then

@@ -84,4 +84,6 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run integration tests
+        env:
+          AUDIT_CONTRACT_ADDRESS: ${{ secrets.AUDIT_CONTRACT_ADDRESS }}
         run: pytest tests/integration/ -v --tb=short

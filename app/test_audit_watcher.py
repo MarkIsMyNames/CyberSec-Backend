@@ -8,10 +8,16 @@ from unittest.mock import MagicMock, patch
 import pytest
 from web3 import Web3
 
-from app.audit_watcher import AuditEvent, pid_to_name, parse_auditd_event, parse_vault_event, submit_event
-
+from app.audit_watcher import (
+    AuditEvent,
+    pid_to_name,
+    parse_auditd_event,
+    parse_vault_event,
+    submit_event,
+)
 
 # ── _pid_to_name ────────────────────────────────────────────────────────────
+
 
 def test_pid_to_name_reads_comm(tmp_path: Path) -> None:
     comm = tmp_path / "comm"
@@ -28,6 +34,7 @@ def test_pid_to_name_falls_back_on_oserror() -> None:
 
 
 # ── parse_auditd_event ───────────────────────────────────────────────────────
+
 
 @patch("app.audit_watcher.pid_to_name", return_value="cat")
 def test_parse_auditd_canary(mock_pid: MagicMock) -> None:
@@ -55,7 +62,9 @@ def test_parse_auditd_unknown_key() -> None:
 
 
 def test_parse_auditd_no_key_field() -> None:
-    line = "type=SYSCALL msg=audit(1234567890.000:5): arch=c000003e syscall=2 pid=1 uid=0"
+    line = (
+        "type=SYSCALL msg=audit(1234567890.000:5): arch=c000003e syscall=2 pid=1 uid=0"
+    )
     assert parse_auditd_event(line) is None
 
 
@@ -74,6 +83,7 @@ def test_parse_auditd_uid_zero(_mock_pid: MagicMock) -> None:
 
 
 # ── parse_vault_event ────────────────────────────────────────────────────────
+
 
 def test_parse_vault_event_match() -> None:
     entry = {
@@ -146,13 +156,18 @@ def _make_mocks(event_hash: bytes = b"\xab" * 32) -> tuple[MagicMock, MagicMock]
     signed.raw_transaction = b"\x00" * 10
     w3.eth.account.sign_transaction.return_value = signed
     contract = MagicMock()
-    contract.functions.logAccess.return_value.build_transaction.return_value = {"from": _ACCOUNT, "nonce": 7}
+    contract.functions.logAccess.return_value.build_transaction.return_value = {
+        "from": _ACCOUNT,
+        "nonce": 7,
+    }
     return w3, contract
 
 
 def test_submit_event_happy_path() -> None:
     w3, contract = _make_mocks()
-    event = AuditEvent(path="/etc/securemsg/vault-credentials", principal="0", agent="sshd")
+    event = AuditEvent(
+        path="/etc/securemsg/vault-credentials", principal="0", agent="sshd"
+    )
     submit_event(event, w3, contract, _ACCOUNT, "0xprivkey")
     w3.eth.send_raw_transaction.assert_called_once()
 
@@ -160,7 +175,9 @@ def test_submit_event_happy_path() -> None:
 def test_submit_event_logs_on_exception(caplog: pytest.LogCaptureFixture) -> None:
     w3, contract = _make_mocks()
     w3.eth.get_transaction_count.side_effect = Exception("RPC error")
-    event = AuditEvent(path="/etc/securemsg/vault-credentials", principal="0", agent="sshd")
+    event = AuditEvent(
+        path="/etc/securemsg/vault-credentials", principal="0", agent="sshd"
+    )
     with caplog.at_level(logging.ERROR, logger="app.audit_watcher"):
         submit_event(event, w3, contract, _ACCOUNT, "0xprivkey")
     assert any("failed to submit" in r.message for r in caplog.records)

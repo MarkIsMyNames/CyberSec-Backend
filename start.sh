@@ -5,9 +5,9 @@ set -euo pipefail
 
 APP="securemsg"
 CURRENT_USER="$(whoami)"
-REPO_DIR="$HOME/CyberSec-Backend"
+REPO_DIR="${REPO_DIR:-$HOME/CyberSec-Backend}"
 VENV_DIR="$REPO_DIR/.venv"
-VAULT_ADDR="http://127.0.0.1:8200"
+export VAULT_ADDR="http://127.0.0.1:8200"
 CREDS_FILE="/etc/$APP/vault-credentials"
 
 RED='\033[0;31m'
@@ -38,9 +38,20 @@ command -v jq &>/dev/null || sudo apt-get install -y -qq jq
 # ─── PostgreSQL ───────────────────────────────
 section "Setting up PostgreSQL"
 command -v psql &>/dev/null || { info "Installing postgresql..."; sudo apt-get install -y -qq postgresql; }
-info "Enabling postgresql service..."
-sudo systemctl enable postgresql --quiet
-sudo systemctl start postgresql
+if [ "${CI:-false}" = "true" ]; then
+    info "CI mode — starting PostgreSQL..."
+    read -r PG_VER PG_CLUSTER _ < <(pg_lsclusters -h)
+    sudo pg_ctlcluster "$PG_VER" "$PG_CLUSTER" start
+else
+    sudo systemctl enable postgresql --quiet
+    sudo systemctl start postgresql
+fi
+info "Waiting for PostgreSQL to accept connections..."
+for i in $(seq 1 20); do
+    sudo -u postgres psql -c "" 2>/dev/null && break
+    [ "$i" -eq 20 ] && die "PostgreSQL did not become ready in time."
+    sleep 1
+done
 info "Checking database role..."
 ROLE_EXISTS=false
 if sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='$APP'" | grep -q 1; then
@@ -125,7 +136,6 @@ sudo systemctl is-active --quiet vault || { sudo journalctl -u vault -n 20 >&2; 
 info "Vault service running."
 
 section "Initialising Vault"
-export VAULT_ADDR
 if vault status 2>/dev/null | grep -q "Initialized.*true"; then
     warn "Vault already initialised — skipping init. Unseal manually if needed."
 else
@@ -154,7 +164,7 @@ DATABASE_URL="postgresql://$APP:$DB_PASS@localhost/$APP"
 
 # ─── Secrets ──────────────────────────────────
 section "Storing secrets"
-if s secret/$APP/prod &>/dev/null; then
+if vault kv get secret/$APP/prod &>/dev/null; then
     warn "secret/$APP/prod already exists — skipping."
 else
     section "Collecting configuration"
@@ -207,15 +217,19 @@ info "AppRole configured."
 
 # ─── Repo and deps ────────────────────────────
 section "Cloning repository"
-[ -d "$REPO_DIR" ] || git clone https://github.com/MarkIsMyNames/CyberSec-Backend.git "$REPO_DIR"
-cd "$REPO_DIR"
-git pull --ff-only --quiet
-[ -f "$VENV_DIR/bin/activate" ] || python3 -m venv "$VENV_DIR"
-"$VENV_DIR/bin/pip" install --upgrade pip --quiet
-"$VENV_DIR/bin/pip" install -r "$REPO_DIR/requirements.txt" --quiet
-info "Python dependencies installed."
-
+if [ "${CI:-false}" != "true" ]; then
+    [ -d "$REPO_DIR" ] || git clone https://github.com/MarkIsMyNames/CyberSec-Backend.git "$REPO_DIR"
+    cd "$REPO_DIR"
+    git pull --ff-only --quiet
+    [ -f "$VENV_DIR/bin/activate" ] || python3 -m venv "$VENV_DIR"
+    "$VENV_DIR/bin/pip" install --upgrade pip --quiet
+    "$VENV_DIR/bin/pip" install -r "$REPO_DIR/requirements.txt" --quiet
+    info "Python dependencies installed."
+else
+    info "CI mode — skipping git clone/pull and pip install."
+fi
 # ─── Credentials file ─────────────────────────
+section "Configuring environment"
 sudo mkdir -p /etc/$APP
 sudo tee "$CREDS_FILE" > /dev/null <<EOF
 VAULT_ADDR=$VAULT_ADDR
@@ -225,9 +239,15 @@ EOF
 sudo chown root:"$CURRENT_USER" "$CREDS_FILE"
 sudo chmod 640 "$CREDS_FILE"
 
+if ! grep -q "VAULT_ADDR" "$HOME/.bashrc"; then
+    echo "export VAULT_ADDR='$VAULT_ADDR'" >> "$HOME/.bashrc"
+    info "Added VAULT_ADDR to .bashrc"
+fi
+
+
 # ─── Smart contract ───────────────────────────
 section "Deploying AuditLog contract"
-if [ -n "$CONTRACT_ADDRESS" ]; then
+if [ -n "$CONTRACT_ADDRESS" ] || [ "${CI:-false}" = "true" ]; then
     info "Contract already deployed — skipping."
 else
     WALLET_PRIVATE_KEY=$(vault kv get -field=WALLET_PRIVATE_KEY secret/$APP/blockchain)
@@ -313,7 +333,7 @@ sudo tee /etc/audit/rules.d/$APP-canary.rules > /dev/null <<RULES
 -w $REPO_DIR/.env -p r -k canary_read
 -w $CREDS_FILE -p r -k vault_credentials_read
 RULES
-sudo augenrules --load > /dev/null 2>&1
+sudo augenrules --load > /dev/null 2>&1 || true
 sudo systemctl enable auditd --quiet
 sudo systemctl restart auditd
 info "auditd configured."
@@ -329,22 +349,28 @@ info "Canary .env written."
 
 # ─── Start ────────────────────────────────────
 section "Starting services"
-sudo systemctl start $APP audit-watcher
-for i in $(seq 1 30); do
-    curl -sf http://localhost/health > /dev/null 2>&1 && {
-        info "Health check passed after $((i * 2))s."; break
-    }
-    [ "$i" -eq 30 ] && { sudo journalctl -u $APP -n 50 >&2; die "Health check timed out."; }
-    sleep 2
-done
+if [ "${CI:-false}" = "true" ]; then
+    info "CI mode — skipping service start and health check."
+else
+    sudo systemctl start $APP audit-watcher
+    for i in $(seq 1 30); do
+        curl -sf http://localhost/health > /dev/null 2>&1 && {
+            info "Health check passed after $((i * 2))s."; break
+        }
+        [ "$i" -eq 30 ] && { sudo journalctl -u $APP -n 50 >&2; die "Health check timed out."; }
+        sleep 2
+    done
+fi
 
 # ─── Done ─────────────────────────────────────
-WALLET_PRIVATE_KEY=$(vault kv get -field=WALLET_PRIVATE_KEY secret/$APP/blockchain)
-WALLET_ADDRESS=$("$VENV_DIR/bin/python3" -c "
+CONTRACT_ADDRESS=$(vault kv get -field=CONTRACT_ADDRESS secret/$APP/blockchain)
+if [ "${CI:-false}" != "true" ]; then
+    WALLET_PRIVATE_KEY=$(vault kv get -field=WALLET_PRIVATE_KEY secret/$APP/blockchain)
+    WALLET_ADDRESS=$("$VENV_DIR/bin/python3" -c "
 from eth_account import Account
 print(Account.from_key('$WALLET_PRIVATE_KEY').address)
 ")
-CONTRACT_ADDRESS=$(vault kv get -field=CONTRACT_ADDRESS secret/$APP/blockchain)
+fi
 
 echo ""
 echo -e "${GREEN}${BOLD}━━━  Setup complete  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
@@ -352,14 +378,17 @@ echo -e "  $APP          : $(sudo systemctl is-active $APP)"
 echo -e "  audit-watcher : $(sudo systemctl is-active audit-watcher)"
 echo -e "  vault         : $(sudo systemctl is-active vault)"
 echo ""
-echo -e "${RED}${BOLD}━━━  SAVE THESE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
-echo -e "  Unseal Key         : ${YELLOW}${UNSEAL_KEY:-<already initialised — check your records>}${RESET}"
-echo -e "  Root Token         : ${YELLOW}${ROOT_TOKEN:-<already initialised — check your records>}${RESET}"
-echo -e "  VAULT_DEPLOY_TOKEN : ${YELLOW}$DEPLOY_TOKEN${RESET}"
-echo -e "  Wallet Private Key : ${YELLOW}$WALLET_PRIVATE_KEY${RESET}"
-echo -e "  AUDIT_CONTRACT_ADDRESS     : ${YELLOW}$CONTRACT_ADDRESS${RESET} ← add to GitHub Secrets"
-echo -e "  AUDIT_CONTRACT_DEPLOY_BLOCK: ${YELLOW}https://sepolia.etherscan.io/address/$CONTRACT_ADDRESS${RESET} (contract creation tx → Block field) ← add to GitHub Secrets"
-echo -e "${RED}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
-echo ""
+if [ "${CI:-false}" != "true" ]; then
+    echo -e "${RED}${BOLD}━━━  SAVE THESE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo -e "  Unseal Key         : ${YELLOW}${UNSEAL_KEY:-<already initialised — check your records>}${RESET}"
+    echo -e "  Root Token         : ${YELLOW}${ROOT_TOKEN:-<already initialised — check your records>}${RESET}"
+    echo -e "  VAULT_DEPLOY_TOKEN : ${YELLOW}$DEPLOY_TOKEN${RESET} ← add to GitHub Secrets"
+    echo -e "  Database URL       : ${YELLOW}$DATABASE_URL${RESET}"
+    echo -e "  AUDIT_CONTRACT_ADDRESS     : ${YELLOW}$CONTRACT_ADDRESS${RESET} ← add to GitHub Secrets"
+    echo -e "  AUDIT_CONTRACT_DEPLOY_BLOCK: ${YELLOW}https://sepolia.etherscan.io/address/$CONTRACT_ADDRESS${RESET} (contract creation tx → Block field) ← add to GitHub Secrets"
+    echo -e "  Wallet Private Key : ${YELLOW}$WALLET_PRIVATE_KEY${RESET}"
+    echo -e "${RED}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo ""
+fi
 echo -e "Add ${BOLD}VAULT_DEPLOY_TOKEN${RESET}, ${BOLD}AUDIT_CONTRACT_ADDRESS${RESET}, and ${BOLD}AUDIT_CONTRACT_DEPLOY_BLOCK${RESET} to GitHub → Settings → Secrets → Actions."
 echo -e "The unseal key is needed after every VM reboot."

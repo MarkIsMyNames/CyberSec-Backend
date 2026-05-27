@@ -47,46 +47,37 @@ def _secret() -> str:
     return os.environ["JWT_SECRET_KEY"]
 
 
-def issue_access_token(user_id: int) -> str:
+def _issue_token(user_id: int, scope: str, ttl_seconds: int, with_jti: bool) -> str:
     now = int(time.time())
-    payload = {
+    payload: dict[str, Any] = {
         "sub": str(user_id),
-        "scope": "full",
-        "exp": now + AUTH_CFG["access_token_ttl_seconds"],
+        "scope": scope,
+        "exp": now + ttl_seconds,
         "iat": now,
     }
+    if with_jti:
+        payload["jti"] = secrets.token_hex(AUTH_CFG["secret_token_bytes"])
     token = jwt.encode(payload, _secret(), algorithm=AUTH_CFG["jwt_algorithm"])
-    logger.debug("issued access token user_id=%d", user_id)
+    logger.debug("issued %s token user_id=%d", scope, user_id)
     return token
+
+
+def issue_access_token(user_id: int) -> str:
+    return _issue_token(
+        user_id, "full", AUTH_CFG["access_token_ttl_seconds"], with_jti=False
+    )
 
 
 def issue_preauth_token(user_id: int) -> str:
-    now = int(time.time())
-    payload = {
-        "sub": str(user_id),
-        "scope": "totp_only",
-        "jti": secrets.token_hex(AUTH_CFG["secret_token_bytes"]),
-        "exp": now + AUTH_CFG["preauth_token_ttl_seconds"],
-        "iat": now,
-    }
-    token = jwt.encode(payload, _secret(), algorithm=AUTH_CFG["jwt_algorithm"])
-    logger.debug("issued preauth token user_id=%d", user_id)
-    return token
+    return _issue_token(
+        user_id, "totp_only", AUTH_CFG["preauth_token_ttl_seconds"], with_jti=True
+    )
 
 
 def issue_refresh_token(user_id: int) -> str:
-    now = int(time.time())
-    jti = secrets.token_hex(AUTH_CFG["secret_token_bytes"])
-    payload = {
-        "sub": str(user_id),
-        "scope": "refresh",
-        "jti": jti,
-        "exp": now + AUTH_CFG["refresh_token_ttl_seconds"],
-        "iat": now,
-    }
-    token = jwt.encode(payload, _secret(), algorithm=AUTH_CFG["jwt_algorithm"])
-    logger.debug("issued refresh token user_id=%d", user_id)
-    return token
+    return _issue_token(
+        user_id, "refresh", AUTH_CFG["refresh_token_ttl_seconds"], with_jti=True
+    )
 
 
 def verify_token(token: str, expected_scope: str) -> TokenClaims:

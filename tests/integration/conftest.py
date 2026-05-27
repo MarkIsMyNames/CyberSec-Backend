@@ -111,7 +111,7 @@ def srp_login(client: httpx.Client, username: str, password: str) -> str:
     return srp_resp["pre_auth_token"]
 
 
-def _totp_verify(client: httpx.Client, pre_auth_token: str, totp_secret: str) -> dict:
+def totp_verify(client: httpx.Client, pre_auth_token: str, totp_secret: str) -> dict:
     code = pyotp.TOTP(totp_secret).now()
     result: dict = req(
         client,
@@ -126,7 +126,7 @@ def full_auth(client: httpx.Client, password: str = "IntegrationTest1") -> dict:
     creds: dict = register(client, make_username(), password)
     for _ in range(REGISTER_MAX_ATTEMPTS):
         pre_auth = srp_login(client, creds["username"], password)
-        tokens = _totp_verify(client, pre_auth, creds["totp_secret"])
+        tokens = totp_verify(client, pre_auth, creds["totp_secret"])
         if "access_token" in tokens:
             return {
                 "username": creds["username"],
@@ -143,6 +143,11 @@ def auth_headers(access_token: str) -> dict[str, str]:
     return {"Authorization": "Bearer %s" % access_token}
 
 
+def refresh_access_token(client: httpx.Client, refresh_token: str) -> str:
+    resp = req(client, "POST", "/api/v1/auth/refresh", json={"refresh_token": refresh_token})
+    return resp.json()["access_token"]
+
+
 def delete_user(client: httpx.Client, access_token: str) -> None:
     req(client, "DELETE", "/api/v1/auth/me", headers=auth_headers(access_token))
 
@@ -157,7 +162,8 @@ def client() -> Generator[httpx.Client, None, None]:
 def auth(client: httpx.Client) -> Generator[dict, None, None]:
     user = full_auth(client)
     yield user
-    delete_user(client, user["access_token"])
+    fresh_token = refresh_access_token(client, user["refresh_token"])
+    delete_user(client, fresh_token)
 
 
 @pytest.fixture

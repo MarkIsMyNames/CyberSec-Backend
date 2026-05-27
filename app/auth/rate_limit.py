@@ -1,3 +1,5 @@
+from collections.abc import Callable
+
 import jwt
 from fastapi import Request
 from slowapi import Limiter
@@ -29,41 +31,20 @@ def _rate_limit_key(request: Request) -> str:
 limiter = Limiter(key_func=_rate_limit_key)
 
 
-def auth_limit() -> str:
-    return str(config["rate_limits"]["auth"])
+def limit(key: str) -> Callable[[], str]:
+    def getter() -> str:
+        return str(config["rate_limits"][key])
+
+    return getter
 
 
-def refresh_limit() -> str:
-    return str(config["rate_limits"]["refresh"])
-
-
-def logout_limit() -> str:
-    return str(config["rate_limits"]["logout"])
-
-
-def messages_limit() -> str:
-    return str(config["rate_limits"]["messages"])
-
-
-def keys_limit() -> str:
-    return str(config["rate_limits"]["keys"])
-
-
-def group_limit() -> str:
-    return str(config["rate_limits"]["groups"])
-
-
-def ip_messages_limit() -> str:
-    return str(config["rate_limits"]["ip_messages"])
-
-
-def ip_keys_limit() -> str:
-    return str(config["rate_limits"]["ip_keys"])
-
-
-def ip_group_limit() -> str:
-    return str(config["rate_limits"]["ip_groups"])
-
-
-def ip_auth_limit() -> str:
-    return str(config["rate_limits"]["ip_auth"])
+auth_limit = limit("auth")
+refresh_limit = limit("refresh")
+logout_limit = limit("logout")
+messages_limit = limit("messages")
+keys_limit = limit("keys")
+group_limit = limit("groups")
+ip_messages_limit = limit("ip_messages")
+ip_keys_limit = limit("ip_keys")
+ip_group_limit = limit("ip_groups")
+ip_auth_limit = limit("ip_auth")

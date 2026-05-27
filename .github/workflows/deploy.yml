@@ -86,4 +86,5 @@ jobs:
       - name: Run integration tests
         env:
           AUDIT_CONTRACT_ADDRESS: ${{ secrets.AUDIT_CONTRACT_ADDRESS }}
+          AUDIT_CONTRACT_DEPLOY_BLOCK: ${{ secrets.AUDIT_CONTRACT_DEPLOY_BLOCK }}
         run: pytest tests/integration/ -v --tb=short

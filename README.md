@@ -70,14 +70,14 @@ bash <(curl -fsSL https://raw.githubusercontent.com/MarkIsMyNames/CyberSec-Backe
 
 The script will prompt for the following values and auto-generate them with `openssl` if left blank:
 
-| Value | Source |
-|---|---|
-| `DATABASE_URL` | Auto-generated — PostgreSQL installed and configured locally |
-| `SERVER_MASTER_SECRET` | Auto-generated (`openssl rand -hex 32`) |
-| `JWT_SECRET_KEY` | Auto-generated (`openssl rand -base64 48`) |
-| `RPC_URL` | Defaults to `https://ethereum-sepolia-rpc.publicnode.com` (public, no API key needed) |
-| `WALLET_PRIVATE_KEY` | Auto-generated — a fresh Sepolia wallet is created; fund it with Sepolia ETH from [sepolia-faucet.pk910.de](https://sepolia-faucet.pk910.de) |
-| `CONTRACT_ADDRESS` | Auto-deployed by `start.sh` on first run; stored in and retrieved from Vault thereafter |
+| Value                  | Source                                                                                                                                       |
+|------------------------|----------------------------------------------------------------------------------------------------------------------------------------------|
+| `DATABASE_URL`         | Auto-generated — PostgreSQL installed and configured locally                                                                                 |
+| `SERVER_MASTER_SECRET` | Auto-generated (`openssl rand -hex 32`)                                                                                                      |
+| `JWT_SECRET_KEY`       | Auto-generated (`openssl rand -base64 48`)                                                                                                   |
+| `RPC_URL`              | Defaults to `https://ethereum-sepolia-rpc.publicnode.com` (public, no API key needed)                                                        |
+| `WALLET_PRIVATE_KEY`   | Auto-generated — a fresh Sepolia wallet is created; fund it with Sepolia ETH from [sepolia-faucet.pk910.de](https://sepolia-faucet.pk910.de) |
+| `CONTRACT_ADDRESS`     | Auto-deployed by `start.sh` on first run; stored in and retrieved from Vault thereafter                                                      |
 
 At the end, the script prints the Vault **unseal key**, **root token**, and **`VAULT_DEPLOY_TOKEN`** — save these. The unseal key is needed after every reboot.
 
@@ -645,14 +645,14 @@ Authorised by identity: the server checks `sender_id` matches the authenticated 
 
 TLS 1.2/1.3 terminated at the gateway. HSTS (`max-age=63072000; includeSubDomains`) set on all responses. Security headers injected at the ASGI layer so they are present on all responses including FastAPI error responses:
 
-| Header | Value | Why |
-|---|---|---|
+| Header                      | Value                                 | Why                                                                               |
+|-----------------------------|---------------------------------------|-----------------------------------------------------------------------------------|
 | `Strict-Transport-Security` | `max-age=63072000; includeSubDomains` | Tells browsers to use HTTPS only for 2 years; prevents protocol downgrade attacks |
-| `X-Frame-Options` | `DENY` | Prevents the app being embedded in an iframe, blocking clickjacking |
-| `X-Content-Type-Options` | `nosniff` | Stops browsers guessing MIME types, preventing content-sniffing attacks |
-| `Content-Security-Policy` | `default-src 'none'` | Blocks all resource loading; appropriate for a pure API with no frontend |
-| `Referrer-Policy` | `no-referrer` | Suppresses the `Referer` header, preventing URL leakage to third parties |
-| `Server` | *(removed)* | Strips the uvicorn banner so attackers cannot fingerprint the software version |
+| `X-Frame-Options`           | `DENY`                                | Prevents the app being embedded in an iframe, blocking clickjacking               |
+| `X-Content-Type-Options`    | `nosniff`                             | Stops browsers guessing MIME types, preventing content-sniffing attacks           |
+| `Content-Security-Policy`   | `default-src 'none'`                  | Blocks all resource loading; appropriate for a pure API with no frontend          |
+| `Referrer-Policy`           | `no-referrer`                         | Suppresses the `Referer` header, preventing URL leakage to third parties          |
+| `Server`                    | *(removed)*                           | Strips the uvicorn banner so attackers cannot fingerprint the software version    |
 
 ---
 
@@ -687,27 +687,27 @@ SQLite was used initially but replaced with PostgreSQL for two reasons:
 
 Every push and pull request to `main` runs the following workflows:
 
-| Workflow | Tool | What it checks |
-|---|---|---|
+| Workflow              | Tool                  | What it checks                                                   |
+|-----------------------|-----------------------|------------------------------------------------------------------|
 | Unit + Security Tests | `pytest` + `coverage` | All tests (unit and OWASP security); enforces ≥95% line coverage |
-| Type Check | `mypy` | Static type correctness across `app/` |
-| Lint | `ruff`, `black` | Style and formatting |
-| Security Scan | `bandit` | Static analysis for common security anti-patterns |
-| Secret Scanning | `gitleaks` | Hardcoded secrets / credentials in commits and working tree |
-| Dependency Audit | `pip-audit` | Known CVEs in dependencies |
+| Type Check            | `mypy`                | Static type correctness across `app/`                            |
+| Lint                  | `ruff`, `black`       | Style and formatting                                             |
+| Security Scan         | `bandit`              | Static analysis for common security anti-patterns                |
+| Secret Scanning       | `gitleaks`            | Hardcoded secrets / credentials in commits and working tree      |
+| Dependency Audit      | `pip-audit`           | Known CVEs in dependencies                                       |
 
 ### Cryptographic Security Levels
 
-| Primitive | Key size | Usage | Classical security | Post-quantum security |
-|---|---|---|---|---|
-| AES-256-GCM | 256-bit | Symmetric encryption (TOTP secrets, SRP verifiers at rest) | 256-bit | 128-bit (Grover halves key search) |
-| X25519 | 255-bit | ECDH key exchange (X3DH, Double Ratchet) | 128-bit | Broken by Shor's algorithm |
-| ML-KEM-1024 | 1184-byte public key | Post-quantum KEM (PQXDH) — NIST Level 5 | 256-bit | 128-bit |
-| X25519 + ML-KEM-1024 hybrid | — | Session key establishment | 128-bit | 128-bit (both must be broken) |
-| Ed25519 | 256-bit | Prekey signatures | 128-bit | Broken by Shor's algorithm |
-| SRP-6a (NG_4096, SHA-256) | 4096-bit group | Password authentication | ~140-bit | Broken by Shor's algorithm |
-| HKDF-SHA256 | 256-bit output | Key derivation | 128-bit | 128-bit |
-| JWT HS256 | 256-bit | Token signing | 128-bit | 128-bit |
+| Primitive                   | Key size             | Usage                                                      | Classical security | Post-quantum security              |
+|-----------------------------|----------------------|------------------------------------------------------------|--------------------|------------------------------------|
+| AES-256-GCM                 | 256-bit              | Symmetric encryption (TOTP secrets, SRP verifiers at rest) | 256-bit            | 128-bit (Grover halves key search) |
+| X25519                      | 255-bit              | ECDH key exchange (X3DH, Double Ratchet)                   | 128-bit            | Broken by Shor's algorithm         |
+| ML-KEM-1024                 | 1184-byte public key | Post-quantum KEM (PQXDH) — NIST Level 5                    | 256-bit            | 128-bit                            |
+| X25519 + ML-KEM-1024 hybrid | —                    | Session key establishment                                  | 128-bit            | 128-bit (both must be broken)      |
+| Ed25519                     | 256-bit              | Prekey signatures                                          | 128-bit            | Broken by Shor's algorithm         |
+| SRP-6a (NG_4096, SHA-256)   | 4096-bit group       | Password authentication                                    | ~140-bit           | Broken by Shor's algorithm         |
+| HKDF-SHA256                 | 256-bit output       | Key derivation                                             | 128-bit            | 128-bit                            |
+| JWT HS256                   | 256-bit              | Token signing                                              | 128-bit            | 128-bit                            |
 
 ## Running Tests Locally
 
@@ -752,11 +752,11 @@ Every push to `main` triggers the deploy-and-test workflow (`.github/workflows/d
 
 **Required GitHub secrets:**
 
-| Secret | Purpose |
-|---|---|
-| `VM_SSH_KEY` | Private SSH key for the deployment VM |
-| `VAULT_DEPLOY_TOKEN` | Vault token — printed by `start.sh` at setup, used to rotate `JWT_SECRET_KEY` on each deploy |
-| `AUDIT_CONTRACT_ADDRESS` | Deployed `AuditLog` contract address on Sepolia — printed by `start.sh` at setup |
+| Secret                        | Purpose                                                                                                       |
+|-------------------------------|---------------------------------------------------------------------------------------------------------------|
+| `VM_SSH_KEY`                  | Private SSH key for the deployment VM                                                                         |
+| `VAULT_DEPLOY_TOKEN`          | Vault token — printed by `start.sh` at setup, used to rotate `JWT_SECRET_KEY` on each deploy                  |
+| `AUDIT_CONTRACT_ADDRESS`      | Deployed `AuditLog` contract address on Sepolia — printed by `start.sh` at setup                              |
 | `AUDIT_CONTRACT_DEPLOY_BLOCK` | Block number of the contract deployment transaction — find it on Etherscan via the link printed by `start.sh` |
 
 Run results are visible in the **Actions** tab of the repository.

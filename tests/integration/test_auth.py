@@ -1,50 +1,46 @@
 from __future__ import annotations
 
 import http
+from urllib.parse import parse_qs, urlparse
+
 import httpx
 import srp
 
 from tests.integration.conftest import (
     auth_headers,
+    delete_user,
     full_auth,
     make_username,
     register,
     req,
     srp_login,
+    totp_verify,
 )
 
 
 class TestAuth:
     def test_register_happy_path(self, client: httpx.Client):
-        creds = register(client, make_username(), "HappyReg1")
-        assert "totp_secret" in creds
+        user = full_auth(client)
+        assert "totp_secret" in user
+        delete_user(client, user["access_token"])
 
     def test_register_duplicate_username(self, client: httpx.Client):
-        username = make_username()
+        user = full_auth(client)
         salt, verifier = srp.create_salted_verification_key(
-            username, "pass1", hash_alg=srp.SHA256, ng_type=srp.NG_4096
-        )
-        req(
-            client,
-            "POST",
-            "/api/v1/auth/register",
-            json={
-                "username": username,
-                "srp_salt": salt.hex(),
-                "srp_verifier": verifier.hex(),
-            },
+            user["username"], "AnotherPass1", hash_alg=srp.SHA256, ng_type=srp.NG_4096
         )
         resp = req(
             client,
             "POST",
             "/api/v1/auth/register",
             json={
-                "username": username,
+                "username": user["username"],
                 "srp_salt": salt.hex(),
                 "srp_verifier": verifier.hex(),
             },
         )
         assert resp.status_code == http.HTTPStatus.CONFLICT
+        delete_user(client, user["access_token"])
 
     def test_register_missing_fields(self, client: httpx.Client):
         resp = req(client, "POST", "/api/v1/auth/register", json={"username": "abc"})
@@ -68,6 +64,10 @@ class TestAuth:
         body = resp.text.lower()
         for key in ("password", "verifier_enc", "totp_secret_enc", "srp_verifier_enc"):
             assert key not in body
+        totp_secret = parse_qs(urlparse(resp.json()["totp_provisioning_uri"]).query)["secret"][0]
+        pre_auth = srp_login(client, username, "NoSecret1")
+        tokens = totp_verify(client, pre_auth, totp_secret)
+        delete_user(client, tokens["access_token"])
 
     def test_srp_init_happy_path(self, client: httpx.Client, auth: dict):
         usr = srp.User(
@@ -125,6 +125,9 @@ class TestAuth:
             json={"totp_code": "000000", "pre_auth_token": pre_auth},
         )
         assert resp.status_code == http.HTTPStatus.UNAUTHORIZED
+        pre_auth2 = srp_login(client, creds["username"], "TwoFAWrong1")
+        tokens = totp_verify(client, pre_auth2, creds["totp_secret"])
+        delete_user(client, tokens["access_token"])
 
     def test_2fa_missing_code(self, client: httpx.Client):
         creds = register(client, make_username(), "TwoFAMiss1")
@@ -136,6 +139,9 @@ class TestAuth:
             json={"pre_auth_token": pre_auth},
         )
         assert resp.status_code == http.HTTPStatus.UNPROCESSABLE_ENTITY
+        pre_auth2 = srp_login(client, creds["username"], "TwoFAMiss1")
+        tokens = totp_verify(client, pre_auth2, creds["totp_secret"])
+        delete_user(client, tokens["access_token"])
 
     def test_refresh_happy_path(self, client: httpx.Client, auth: dict):
         resp = req(
@@ -169,6 +175,7 @@ class TestAuth:
             json={"refresh_token": user["refresh_token"]},
         )
         assert resp.status_code == http.HTTPStatus.NO_CONTENT
+        delete_user(client, user["access_token"])
 
     def test_logout_no_token(self, client: httpx.Client):
         resp = req(client, "POST", "/api/v1/auth/logout", json={})
@@ -189,6 +196,7 @@ class TestAuth:
             json={"refresh_token": user["refresh_token"]},
         )
         assert resp.status_code == http.HTTPStatus.UNAUTHORIZED
+        delete_user(client, user["access_token"])
 
     def test_delete_me_happy_path(self, client: httpx.Client, ephemeral_user: dict):
         resp = req(

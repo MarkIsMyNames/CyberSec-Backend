@@ -1,0 +1,41 @@
+name: Test start.sh
+
+on: push
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stub systemctl
+        run: |
+          sudo tee /usr/local/bin/systemctl > /dev/null <<'EOF'
+          #!/bin/bash
+          cmd="" unit=""
+          for arg in "$@"; do
+            case "$arg" in
+              --*) ;;
+              *) [ -z "$cmd" ] && cmd="$arg" || { [ -z "$unit" ] && unit="$arg"; } ;;
+            esac
+          done
+          case "$cmd" in
+            start)
+              case "$unit" in
+                vault)
+                  if ! pgrep -x vault > /dev/null 2>&1; then
+                    vault server -config=/etc/vault/config.hcl -log-level=error &
+                    sleep 3
+                  fi
+                  ;;
+                postgresql) service postgresql start 2>/dev/null || true ;;
+              esac
+              ;;
+            is-active) echo "active" ;;
+          esac
+          exit 0
+          EOF
+          sudo chmod +x /usr/local/bin/systemctl
+
+      - name: Run start.sh
+        run: CI=true REPO_DIR="$GITHUB_WORKSPACE" bash start.sh

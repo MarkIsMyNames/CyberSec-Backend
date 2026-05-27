@@ -353,11 +353,13 @@ fi
 
 # ─── Done ─────────────────────────────────────
 CONTRACT_ADDRESS=$(vault kv get -field=CONTRACT_ADDRESS secret/$APP/blockchain)
-WALLET_PRIVATE_KEY=$(vault kv get -field=WALLET_PRIVATE_KEY secret/$APP/blockchain)
-WALLET_ADDRESS=$("$VENV_DIR/bin/python3" -c "
+if [ "${CI:-false}" != "true" ]; then
+    WALLET_PRIVATE_KEY=$(vault kv get -field=WALLET_PRIVATE_KEY secret/$APP/blockchain)
+    WALLET_ADDRESS=$("$VENV_DIR/bin/python3" -c "
 from eth_account import Account
 print(Account.from_key('$WALLET_PRIVATE_KEY').address)
 ")
+fi
 
 echo ""
 echo -e "${GREEN}${BOLD}━━━  Setup complete  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"

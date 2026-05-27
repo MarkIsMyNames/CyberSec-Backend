@@ -27,7 +27,7 @@ def audit_contract():
 
 @pytest.fixture
 def secret_access_events(audit_contract):
-    events = audit_contract.events.SecretAccess().get_logs(fromBlock=0)
+    events = audit_contract.events.SecretAccess().get_logs(from_block=0)
     assert events, "No SecretAccess events found on-chain"
     return events
 

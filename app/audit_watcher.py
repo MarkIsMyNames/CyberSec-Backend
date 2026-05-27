@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import json
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import closing, contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import IO
@@ -116,25 +117,57 @@ def submit_event(
         logger.error("failed to submit on-chain event path=%s err=%s", event.path, exc)
 
 
+@contextmanager
+def open_sources(
+    sources: list[tuple[str, Callable[[str], AuditEvent | None]]],
+    inotify: inotify_simple.INotify,
+    wd_to_handle: dict[int, tuple[IO[str], Callable[[str], AuditEvent | None]]],
+) -> Iterator[None]:
+    if not sources:
+        yield
+        return
+    src_path, src_parser = sources[0]
+    with closing(open(src_path)) as src_file:
+        src_file.seek(0, 2)
+        wd = inotify.add_watch(src_file.name, inotify_simple.flags.MODIFY)
+        wd_to_handle[wd] = (src_file, src_parser)
+        logger.info("tailing %s", src_file.name)
+        with open_sources(sources[1:], inotify, wd_to_handle):
+            yield
+
+
+@contextmanager
+def _watch_sources(
+    sources: list[tuple[str, Callable[[str], AuditEvent | None]]],
+) -> Iterator[
+    tuple[inotify_simple.INotify, dict[int, tuple[IO[str], Callable[[str], AuditEvent | None]]]]
+]:
+    with closing(inotify_simple.INotify()) as inotify:
+        wd_to_handle: dict[int, tuple[IO[str], Callable[[str], AuditEvent | None]]] = {}
+        with open_sources(sources, inotify, wd_to_handle):
+            logger.info("audit watcher running")
+            yield inotify, wd_to_handle
+
+
 def run() -> None:
     logger.info("audit watcher starting")
     blockchain_cfg = read_vault_kv(config["vault"]["blockchain_secret_path"])
 
-    with open("app/audit_abi.json") as file:
-        abi = json.load(file)
+    with open("app/audit_abi.json") as abi_file:
+        abi = json.load(abi_file)
 
     w3 = Web3(Web3.HTTPProvider(blockchain_cfg["RPC_URL"]))
     if not w3.is_connected():
         logger.error("cannot connect to Sepolia RPC %s", blockchain_cfg["RPC_URL"])
         return
-    contract_address: ChecksumAddress = Web3.to_checksum_address(
-        blockchain_cfg["CONTRACT_ADDRESS"]
-    )
-    contract = w3.eth.contract(address=contract_address, abi=abi)
-    account: ChecksumAddress = Web3.to_checksum_address(
-        w3.eth.account.from_key(blockchain_cfg["WALLET_PRIVATE_KEY"]).address
+    contract = w3.eth.contract(
+        address=Web3.to_checksum_address(blockchain_cfg["CONTRACT_ADDRESS"]),
+        abi=abi,
     )
     private_key = blockchain_cfg["WALLET_PRIVATE_KEY"]
+    account: ChecksumAddress = Web3.to_checksum_address(
+        w3.eth.account.from_key(private_key).address
+    )
     logger.info(
         "connected to Sepolia contract=%s account=%s",
         blockchain_cfg["CONTRACT_ADDRESS"],
@@ -145,37 +178,20 @@ def run() -> None:
         (audit_cfg["auditd_log"], parse_auditd_event),
         (audit_cfg["vault_audit_log"], parse_vault_event),
     ]
+    if not sources:
+        raise ValueError("no audit sources configured")
 
-    handles: list[tuple[IO[str], Callable[[str], AuditEvent | None]]] = []
-    inotify = inotify_simple.INotify()
-    try:
-        wd_to_handle: dict[int, tuple[IO[str], Callable[[str], AuditEvent | None]]] = {}
-        for src_path, src_parser in sources:
-            src_file: IO[str] = open(src_path)
-            handles.append((src_file, src_parser))
-            src_file.seek(0, 2)
-            wd = inotify.add_watch(src_file.name, inotify_simple.flags.MODIFY)
-            wd_to_handle[wd] = (src_file, src_parser)
-            logger.info("tailing %s", src_file.name)
-        logger.info("audit watcher running")
-        while True:
-            for (
-                inotify_event
-            ) in inotify.read():  # Will block until an update to the file
-                watched_file, watched_parser = wd_to_handle[inotify_event.wd]
-                while True:
-                    line = watched_file.readline()
-                    if not line:
-                        break
-                    event = watched_parser(line)
-                    if event:
-                        submit_event(event, w3, contract, account, private_key)
-    except OSError as exc:
-        logger.error("audit watcher failed err=%s", exc)
-    finally:
-        inotify.close()
-        for handle, _ in handles:
-            handle.close()
+    with _watch_sources(sources) as (inotify, wd_to_handle):
+        try:
+            while True:
+                for inotify_event in inotify.read():
+                    watched_file, watched_parser = wd_to_handle[inotify_event.wd]
+                    for line in iter(watched_file.readline, ""):
+                        event = watched_parser(line)
+                        if event:
+                            submit_event(event, w3, contract, account, private_key)
+        except OSError as exc:
+            logger.error("audit watcher failed err=%s", exc)
 
 
 if __name__ == "__main__":

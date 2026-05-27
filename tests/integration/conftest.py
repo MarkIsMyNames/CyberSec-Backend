@@ -162,8 +162,7 @@ def client() -> Generator[httpx.Client, None, None]:
 def auth(client: httpx.Client) -> Generator[dict, None, None]:
     user = full_auth(client)
     yield user
-    fresh_token = refresh_access_token(client, user["refresh_token"])
-    delete_user(client, fresh_token)
+    delete_user(client, user["access_token"])
 
 
 @pytest.fixture

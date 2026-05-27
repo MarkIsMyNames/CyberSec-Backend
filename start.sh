@@ -339,13 +339,12 @@ for i in $(seq 1 30); do
 done
 
 # ─── Done ─────────────────────────────────────
-if [ -z "${WALLET_ADDRESS:-}" ]; then
-    WALLET_PRIVATE_KEY=$(vault kv get -field=WALLET_PRIVATE_KEY secret/$APP/blockchain)
-    WALLET_ADDRESS=$("$VENV_DIR/bin/python3" -c "
+WALLET_PRIVATE_KEY=$(vault kv get -field=WALLET_PRIVATE_KEY secret/$APP/blockchain)
+WALLET_ADDRESS=$("$VENV_DIR/bin/python3" -c "
 from eth_account import Account
 print(Account.from_key('$WALLET_PRIVATE_KEY').address)
 ")
-fi
+CONTRACT_ADDRESS=$(vault kv get -field=CONTRACT_ADDRESS secret/$APP/blockchain)
 
 echo ""
 echo -e "${GREEN}${BOLD}━━━  Setup complete  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
@@ -357,6 +356,8 @@ echo -e "${RED}${BOLD}━━━  SAVE THESE  ━━━━━━━━━━━�
 echo -e "  Unseal Key         : ${YELLOW}${UNSEAL_KEY:-<already initialised — check your records>}${RESET}"
 echo -e "  Root Token         : ${YELLOW}${ROOT_TOKEN:-<already initialised — check your records>}${RESET}"
 echo -e "  VAULT_DEPLOY_TOKEN : ${YELLOW}$DEPLOY_TOKEN${RESET}"
+echo -e "  Wallet Private Key : ${YELLOW}$WALLET_PRIVATE_KEY${RESET}"
+echo -e "  Contract Address   : ${YELLOW}$CONTRACT_ADDRESS${RESET}"
 echo -e "${RED}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
 echo ""
 echo -e "Add ${BOLD}VAULT_DEPLOY_TOKEN${RESET} to GitHub → Settings → Secrets → Actions."

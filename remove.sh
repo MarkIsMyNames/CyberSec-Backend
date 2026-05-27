@@ -19,6 +19,7 @@ read -r -p "Are you sure? (yes/no): " confirm
 info "Stopping services..."
 sudo systemctl stop $APP audit-watcher vault postgresql auditd 2>/dev/null || true
 sudo systemctl disable $APP audit-watcher vault 2>/dev/null || true
+sleep 2
 
 info "Removing systemd units..."
 sudo rm -f /etc/systemd/system/$APP.service

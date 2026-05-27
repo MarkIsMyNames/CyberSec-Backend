@@ -40,7 +40,8 @@ section "Setting up PostgreSQL"
 command -v psql &>/dev/null || { info "Installing postgresql..."; sudo apt-get install -y -qq postgresql; }
 if [ "${CI:-false}" = "true" ]; then
     info "CI mode — starting PostgreSQL..."
-    sudo service postgresql start
+    read -r PG_VER PG_CLUSTER _ < <(pg_lsclusters -h)
+    sudo pg_ctlcluster "$PG_VER" "$PG_CLUSTER" start
 else
     sudo systemctl enable postgresql --quiet
     sudo systemctl start postgresql

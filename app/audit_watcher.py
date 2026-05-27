@@ -4,6 +4,7 @@ import json
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 from typing import IO
 
 import inotify_simple
@@ -17,6 +18,13 @@ from app.logger import logger
 from app.vault import read_vault_kv
 
 audit_cfg = config["audit"]
+
+
+def pid_to_name(pid: str) -> str:
+    try:
+        return Path("/proc/%s/comm" % pid).read_text().strip()
+    except OSError:
+        return pid
 
 
 @dataclass
@@ -41,10 +49,11 @@ def parse_auditd_event(line: str) -> AuditEvent | None:
     if not pid_match or not uid_match:
         logger.error("malformed auditd line — missing pid or uid: %s", line.rstrip())
         raise ValueError("malformed auditd line: %s" % line.rstrip())
+    pid = pid_match.group(1)
     return AuditEvent(
         path=path,
         principal=uid_match.group(1),
-        agent=pid_match.group(1),
+        agent=pid_to_name(pid),
     )
 
 

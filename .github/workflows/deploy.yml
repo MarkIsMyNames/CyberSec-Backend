@@ -43,8 +43,7 @@ jobs:
             fi
 
             echo "--- rotate jwt secret"
-            VAULT_ADDR=http://127.0.0.1:8200 vault kv patch \
-              -header "X-Vault-Token=$VAULT_DEPLOY_TOKEN" \
+            VAULT_ADDR=http://127.0.0.1:8200 VAULT_TOKEN="$VAULT_DEPLOY_TOKEN" vault kv patch \
               secret/securemsg/prod JWT_SECRET_KEY="$(openssl rand -base64 48)"
 
             echo "--- restart"

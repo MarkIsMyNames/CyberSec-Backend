@@ -188,8 +188,8 @@ path "secret/data/$APP/prod"        { capabilities = ["read"] }
 path "secret/data/$APP/blockchain"  { capabilities = ["read"] }
 HCL
 vault policy write $APP-deploy - > /dev/null <<HCL
-path "secret/data/$APP/prod"        { capabilities = ["create", "update"] }
-path "secret/data/$APP/blockchain"  { capabilities = ["create", "update"] }
+path "secret/data/$APP/prod"        { capabilities = ["read", "create", "update"] }
+path "secret/data/$APP/blockchain"  { capabilities = ["read", "create", "update"] }
 HCL
 vault auth list 2>/dev/null | grep -q "approle/" || vault auth enable approle
 vault write auth/approle/role/$APP-app \

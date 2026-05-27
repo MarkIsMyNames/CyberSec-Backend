@@ -33,12 +33,26 @@ pip install -r requirements.txt
 
 ### Local Development
 
-For local development, export the three secrets directly in your shell. Do not create a `.env` file.
+Install PostgreSQL and create the local database first:
+
+**Debian/Ubuntu:**
+```bash
+sudo apt-get install -y postgresql
+sudo systemctl enable --now postgresql
+```
+
+Then create the database:
+```bash
+sudo -u postgres psql -c "CREATE USER securemsg WITH PASSWORD 'pass';"
+sudo -u postgres psql -c "CREATE DATABASE securemsg OWNER securemsg;"
+```
+
+Then export the three secrets and start the server. Do not create a `.env` file.
 
 ```bash
 export SERVER_MASTER_SECRET=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 export JWT_SECRET_KEY=dev_jwt_secret_key
-export DATABASE_URL=postgresql://user:pass@localhost/securemsg
+export DATABASE_URL=postgresql://securemsg:pass@localhost/securemsg
 uvicorn app.main:application --host 127.0.0.1 --port 8000
 ```
 
@@ -742,5 +756,7 @@ Every push to `main` triggers the deploy-and-test workflow (`.github/workflows/d
 |---|---|
 | `VM_SSH_KEY` | Private SSH key for the deployment VM |
 | `VAULT_DEPLOY_TOKEN` | Vault token — printed by `start.sh` at setup, used to rotate `JWT_SECRET_KEY` on each deploy |
+| `AUDIT_CONTRACT_ADDRESS` | Deployed `AuditLog` contract address on Sepolia — printed by `start.sh` at setup |
+| `AUDIT_CONTRACT_DEPLOY_BLOCK` | Block number of the contract deployment transaction — find it on Etherscan via the link printed by `start.sh` |
 
 Run results are visible in the **Actions** tab of the repository.

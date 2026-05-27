@@ -45,6 +45,12 @@ else
     sudo systemctl enable postgresql --quiet
     sudo systemctl start postgresql
 fi
+info "Waiting for PostgreSQL to accept connections..."
+for i in $(seq 1 20); do
+    sudo -u postgres psql -c "" 2>/dev/null && break
+    [ "$i" -eq 20 ] && die "PostgreSQL did not become ready in time."
+    sleep 1
+done
 info "Checking database role..."
 ROLE_EXISTS=false
 if sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='$APP'" | grep -q 1; then

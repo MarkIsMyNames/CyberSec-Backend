@@ -140,7 +140,10 @@ def open_sources(
 def _watch_sources(
     sources: list[tuple[str, Callable[[str], AuditEvent | None]]],
 ) -> Iterator[
-    tuple[inotify_simple.INotify, dict[int, tuple[IO[str], Callable[[str], AuditEvent | None]]]]
+    tuple[
+        inotify_simple.INotify,
+        dict[int, tuple[IO[str], Callable[[str], AuditEvent | None]]],
+    ]
 ]:
     with closing(inotify_simple.INotify()) as inotify:
         wd_to_handle: dict[int, tuple[IO[str], Callable[[str], AuditEvent | None]]] = {}
@@ -174,7 +177,7 @@ def run() -> None:
         account,
     )
 
-    sources = [
+    sources: list[tuple[str, Callable[[str], AuditEvent | None]]] = [
         (audit_cfg["auditd_log"], parse_auditd_event),
         (audit_cfg["vault_audit_log"], parse_vault_event),
     ]

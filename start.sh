@@ -38,9 +38,13 @@ command -v jq &>/dev/null || sudo apt-get install -y -qq jq
 # ─── PostgreSQL ───────────────────────────────
 section "Setting up PostgreSQL"
 command -v psql &>/dev/null || { info "Installing postgresql..."; sudo apt-get install -y -qq postgresql; }
-info "Enabling postgresql service..."
-sudo systemctl enable postgresql --quiet
-sudo systemctl start postgresql
+if [ "${CI:-false}" = "true" ]; then
+    info "CI mode — starting PostgreSQL..."
+    sudo service postgresql start
+else
+    sudo systemctl enable postgresql --quiet
+    sudo systemctl start postgresql
+fi
 info "Checking database role..."
 ROLE_EXISTS=false
 if sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='$APP'" | grep -q 1; then

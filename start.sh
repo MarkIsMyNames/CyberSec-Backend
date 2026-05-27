@@ -7,7 +7,7 @@ APP="securemsg"
 CURRENT_USER="$(whoami)"
 REPO_DIR="$HOME/CyberSec-Backend"
 VENV_DIR="$REPO_DIR/.venv"
-VAULT_ADDR="http://127.0.0.1:8200"
+export VAULT_ADDR="http://127.0.0.1:8200"
 CREDS_FILE="/etc/$APP/vault-credentials"
 
 RED='\033[0;31m'
@@ -125,7 +125,6 @@ sudo systemctl is-active --quiet vault || { sudo journalctl -u vault -n 20 >&2; 
 info "Vault service running."
 
 section "Initialising Vault"
-export VAULT_ADDR
 if vault status 2>/dev/null | grep -q "Initialized.*true"; then
     warn "Vault already initialised — skipping init. Unseal manually if needed."
 else
@@ -154,7 +153,7 @@ DATABASE_URL="postgresql://$APP:$DB_PASS@localhost/$APP"
 
 # ─── Secrets ──────────────────────────────────
 section "Storing secrets"
-if s secret/$APP/prod &>/dev/null; then
+if vault kv get secret/$APP/prod &>/dev/null; then
     warn "secret/$APP/prod already exists — skipping."
 else
     section "Collecting configuration"
@@ -214,8 +213,8 @@ git pull --ff-only --quiet
 "$VENV_DIR/bin/pip" install --upgrade pip --quiet
 "$VENV_DIR/bin/pip" install -r "$REPO_DIR/requirements.txt" --quiet
 info "Python dependencies installed."
-
 # ─── Credentials file ─────────────────────────
+section "Configuring environment"
 sudo mkdir -p /etc/$APP
 sudo tee "$CREDS_FILE" > /dev/null <<EOF
 VAULT_ADDR=$VAULT_ADDR
@@ -224,6 +223,12 @@ VAULT_SECRET_ID=$SECRET_ID
 EOF
 sudo chown root:"$CURRENT_USER" "$CREDS_FILE"
 sudo chmod 640 "$CREDS_FILE"
+
+if ! grep -q "VAULT_ADDR" "$HOME/.bashrc"; then
+    echo "export VAULT_ADDR='$VAULT_ADDR'" >> "$HOME/.bashrc"
+    info "Added VAULT_ADDR to .bashrc"
+fi
+
 
 # ─── Smart contract ───────────────────────────
 section "Deploying AuditLog contract"
@@ -353,6 +358,7 @@ echo -e "  audit-watcher : $(sudo systemctl is-active audit-watcher)"
 echo -e "  vault         : $(sudo systemctl is-active vault)"
 echo ""
 echo -e "${RED}${BOLD}━━━  SAVE THESE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+echo -e "  Database URL       : ${YELLOW}$DATABASE_URL${RESET}"
 echo -e "  Unseal Key         : ${YELLOW}${UNSEAL_KEY:-<already initialised — check your records>}${RESET}"
 echo -e "  Root Token         : ${YELLOW}${ROOT_TOKEN:-<already initialised — check your records>}${RESET}"
 echo -e "  VAULT_DEPLOY_TOKEN : ${YELLOW}$DEPLOY_TOKEN${RESET}"

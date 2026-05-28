@@ -197,10 +197,6 @@ vault policy write $APP-app - > /dev/null <<HCL
 path "secret/data/$APP/prod"        { capabilities = ["read"] }
 path "secret/data/$APP/blockchain"  { capabilities = ["read"] }
 HCL
-vault policy write $APP-deploy - > /dev/null <<HCL
-path "secret/data/$APP/prod"        { capabilities = ["read", "create", "update"] }
-path "secret/data/$APP/blockchain"  { capabilities = ["read", "create", "update"] }
-HCL
 vault auth list 2>/dev/null | grep -q "approle/" || vault auth enable approle
 vault write auth/approle/role/$APP-app \
     token_policies="$APP-app" \
@@ -212,7 +208,6 @@ if grep -q "VAULT_SECRET_ID" "$CREDS_FILE" 2>/dev/null; then
 else
     SECRET_ID=$(vault write -f -field=secret_id auth/approle/role/$APP-app/secret-id)
 fi
-DEPLOY_TOKEN=$(vault token create -policy="$APP-deploy" -ttl=0 -period=720h -field=token)
 info "AppRole configured."
 
 # ─── Repo and deps ────────────────────────────
@@ -382,7 +377,6 @@ if [ "${CI:-false}" != "true" ]; then
     echo -e "${RED}${BOLD}━━━  SAVE THESE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
     echo -e "  Unseal Key         : ${YELLOW}${UNSEAL_KEY:-<already initialised — check your records>}${RESET}"
     echo -e "  Root Token         : ${YELLOW}${ROOT_TOKEN:-<already initialised — check your records>}${RESET}"
-    echo -e "  VAULT_DEPLOY_TOKEN : ${YELLOW}$DEPLOY_TOKEN${RESET} ← add to GitHub Secrets"
     echo -e "  Database URL       : ${YELLOW}$DATABASE_URL${RESET}"
     echo -e "  AUDIT_CONTRACT_ADDRESS     : ${YELLOW}$CONTRACT_ADDRESS${RESET} ← add to GitHub Secrets"
     echo -e "  AUDIT_CONTRACT_DEPLOY_BLOCK: ${YELLOW}https://sepolia.etherscan.io/address/$CONTRACT_ADDRESS${RESET} (contract creation tx → Block field) ← add to GitHub Secrets"
@@ -390,5 +384,5 @@ if [ "${CI:-false}" != "true" ]; then
     echo -e "${RED}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
     echo ""
 fi
-echo -e "Add ${BOLD}VAULT_DEPLOY_TOKEN${RESET}, ${BOLD}AUDIT_CONTRACT_ADDRESS${RESET}, and ${BOLD}AUDIT_CONTRACT_DEPLOY_BLOCK${RESET} to GitHub → Settings → Secrets → Actions."
+echo -e "Add ${BOLD}AUDIT_CONTRACT_ADDRESS${RESET} and ${BOLD}AUDIT_CONTRACT_DEPLOY_BLOCK${RESET} to GitHub → Settings → Secrets → Actions."
 echo -e "The unseal key is needed after every VM reboot."

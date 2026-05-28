@@ -79,7 +79,7 @@ The script will prompt for the following values and auto-generate them with `ope
 | `WALLET_PRIVATE_KEY`   | Auto-generated — a fresh Sepolia wallet is created; fund it with Sepolia ETH from [sepolia-faucet.pk910.de](https://sepolia-faucet.pk910.de) |
 | `CONTRACT_ADDRESS`     | Auto-deployed by `start.sh` on first run; stored in and retrieved from Vault thereafter                                                      |
 
-At the end, the script prints the Vault **unseal key**, **root token**, and **`VAULT_DEPLOY_TOKEN`** — save these. The unseal key is needed after every reboot.
+At the end, the script prints the Vault **unseal key**, **root token**, and database URL — save these. The unseal key is needed after every reboot.
 
 ### Resetting the Server
 
@@ -615,7 +615,9 @@ Current key is the one whose `epoch` is the highest. It won't be known to the re
 
 ### Secrets Management
 
-There is no `.env` file on the production server. All secrets (`SERVER_MASTER_SECRET`, `JWT_SECRET_KEY`, `DATABASE_URL`) are stored in HashiCorp Vault and fetched at startup via AppRole authentication. The app never writes secrets to disk. A canary `.env` file exists and any read or of the Vault credentials file is detected by auditd and triggers an immutable on-chain event on the Sepolia blockchain via the `AuditLog` smart contract. This gives two layers of protection: prevention (secrets never on disk) and detection (unauthorised reads logged immutably to a public blockchain).
+There is no `.env` file on the production server. All secrets (`SERVER_MASTER_SECRET`, `JWT_SECRET_KEY`, `DATABASE_URL`) are stored in HashiCorp Vault and fetched at startup via AppRole authentication. The app never writes secrets to disk. A canary `.env` file exists and any read of the Vault credentials file is detected by auditd and triggers an immutable on-chain event on the Sepolia blockchain via the `AuditLog` smart contract. This gives two layers of protection: prevention (secrets never on disk) and detection (unauthorised reads logged immutably to a public blockchain).
+
+The app authenticates using Vault's **AppRole** method. On startup (`main.py` lifespan), `load_secrets()` in `app/vault.py` reads three env vars that `start.sh` writes to `/etc/securemsg/credentials` on the server.
 
 ### Authentication
 
@@ -623,7 +625,7 @@ There is no `.env` file on the production server. All secrets (`SERVER_MASTER_SE
 
 **TOTP 2FA** — required after every SRP handshake. TOTP secrets are encrypted at rest with AES-256-GCM; the key is derived from `SERVER_MASTER_SECRET` via HKDF-SHA256.
 
-**JWT tokens** — short-lived access tokens (15 min) plus single-use refresh tokens. Refresh tokens are revoked immediately on use and blocklisted on logout. The signing secret (`JWT_SECRET_KEY`) is rotated on every deploy, invalidating all active sessions.
+**JWT tokens** — short-lived access tokens (15 min) plus single-use refresh tokens. Refresh tokens are revoked immediately on use and blocklisted on logout.
 
 ### End-to-End Encryption
 
@@ -746,7 +748,7 @@ The suite registers a temporary user via the full SRP+TOTP flow, exercises every
 
 Every push to `main` triggers the deploy-and-test workflow (`.github/workflows/deploy.yml`):
 
-1. **Deploy job** — SSHes into the VM, pulls latest code, reinstalls Python dependencies if `requirements.txt` changed, rotates `JWT_SECRET_KEY` in Vault (invalidating all active sessions), restarts `securemsg`, and polls the `/health` endpoint for up to 60s.
+1. **Deploy job** — SSHes into the VM, pulls latest code, reinstalls Python dependencies if `requirements.txt` changed, restarts `securemsg`, and polls the `/health` endpoint for up to 60s.
 
 2. **Test job** — Runs after deploy succeeds. Installs dependencies and runs `pytest tests/integration/` against the live server.
 
@@ -755,7 +757,6 @@ Every push to `main` triggers the deploy-and-test workflow (`.github/workflows/d
 | Secret                        | Purpose                                                                                                       |
 |-------------------------------|---------------------------------------------------------------------------------------------------------------|
 | `VM_SSH_KEY`                  | Private SSH key for the deployment VM                                                                         |
-| `VAULT_DEPLOY_TOKEN`          | Vault token — printed by `start.sh` at setup, used to rotate `JWT_SECRET_KEY` on each deploy                  |
 | `AUDIT_CONTRACT_ADDRESS`      | Deployed `AuditLog` contract address on Sepolia — printed by `start.sh` at setup                              |
 | `AUDIT_CONTRACT_DEPLOY_BLOCK` | Block number of the contract deployment transaction — find it on Etherscan via the link printed by `start.sh` |
 

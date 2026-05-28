@@ -10,15 +10,12 @@ jobs:
     steps:
       - name: SSH and deploy
         uses: appleboy/ssh-action@v1.0.3
-        env:
-          VAULT_DEPLOY_TOKEN: ${{ secrets.VAULT_DEPLOY_TOKEN }}
         with:
           host: 200.69.13.70
           port: 2206
           username: student
           key: ${{ secrets.VM_SSH_KEY }}
           script_stop: true
-          envs: VAULT_DEPLOY_TOKEN
           script: |
             set -euo pipefail
 
@@ -41,10 +38,6 @@ jobs:
               mkdir -p "$(dirname "$STATE_FILE")"
               echo "$DEP_HASH" > "$STATE_FILE"
             fi
-
-            echo "--- rotate jwt secret"
-            VAULT_ADDR=http://127.0.0.1:8200 VAULT_TOKEN="$VAULT_DEPLOY_TOKEN" vault kv patch \
-              secret/securemsg/prod JWT_SECRET_KEY="$(openssl rand -base64 48)"
 
             echo "--- restart"
             sudo systemctl restart securemsg

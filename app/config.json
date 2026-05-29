@@ -22,10 +22,10 @@
     "logout": "15/minute",
     "messages": "90/minute",
     "keys": "90/minute",
-    "groups": "45/minute",
+    "groups": "90/minute",
     "ip_messages": "450/minute",
     "ip_keys": "450/minute",
-    "ip_groups": "225/minute",
+    "ip_groups": "450/minute",
     "ip_auth": "150/minute"
   },
   "messaging": {

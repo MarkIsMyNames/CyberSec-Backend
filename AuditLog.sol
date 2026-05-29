@@ -6,7 +6,7 @@ contract AuditLog {
 
     event SecretAccess(
         bytes32 indexed eventHash,
-        uint256 indexed timestamp,
+        uint64 indexed timestamp,
         address reporter
     );
 

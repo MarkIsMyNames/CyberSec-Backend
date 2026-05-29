@@ -759,6 +759,5 @@ Every push to `main` triggers the deploy-and-test workflow (`.github/workflows/d
 |-------------------------------|---------------------------------------------------------------------------------------------------------------|
 | `VM_SSH_KEY`                  | Private SSH key for the deployment VM                                                                         |
 | `AUDIT_CONTRACT_ADDRESS`      | Deployed `AuditLog` contract address on Sepolia — printed by `start.sh` at setup                              |
-| `AUDIT_CONTRACT_DEPLOY_BLOCK` | Block number of the contract deployment transaction — find it on Etherscan via the link printed by `start.sh` |
 
 Run results are visible in the **Actions** tab of the repository.

@@ -201,6 +201,7 @@ async def list_group_messages(
     return [
         GroupMessageResponse(
             id=m.id,
+            sender_id=m.sender_id,
             group_id=m.group_id,
             epoch=m.epoch,
             ciphertext=base64.b64encode(m.ciphertext).decode(),

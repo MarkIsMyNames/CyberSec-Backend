@@ -59,6 +59,7 @@ class SendGroupMessageResponse(BaseModel):
 
 class GroupMessageResponse(BaseModel):
     id: int
+    sender_id: int
     group_id: int
     epoch: int
     ciphertext: str

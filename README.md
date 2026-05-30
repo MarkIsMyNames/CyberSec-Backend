@@ -542,6 +542,7 @@ List messages in a group.
 [
   {
     "id": 1,
+    "sender_id": 3,
     "group_id": 1,
     "epoch": 2,
     "ciphertext": "<base64>"
